@@ -50,9 +50,99 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
             status, decision);
     }
 
+    public async Task<IReadOnlyList<Proposal>> ListAsync(
+        ProposalStatus? status,
+        CancellationToken ct)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(ct);
+
+        await using var command = connection.CreateCommand();
+
+        command.CommandText = """
+            SELECT ID, CUSTOMER_REFERENCE, AMOUNT, TERM_MONTHS, MONTHLY_INCOME,
+                   CREATED_AT_UTC, STATUS, MONTHLY_PAYMENT, COMMITMENT_PERCENT, REASON
+            FROM CREDIT_PROPOSALS
+            WHERE (@status IS NULL OR STATUS = @status)
+            ORDER BY CREATED_AT_UTC DESC
+            """;
+
+        command.Parameters.Add(
+            new NpgsqlParameter("status", NpgsqlDbType.Varchar)
+            {
+                Value = status?.ToString() ?? (object)DBNull.Value
+            });
+
+        var proposals = new List<Proposal>();
+
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        while (await reader.ReadAsync(ct))
+        {
+            var proposalStatus =
+                Enum.Parse<ProposalStatus>(reader.GetString(6));
+
+            CreditDecision? decision = reader.IsDBNull(7)
+                ? null
+                : new CreditDecision(
+                    proposalStatus,
+                    reader.GetDecimal(7),
+                    reader.GetDecimal(8),
+                    reader.GetString(9));
+
+            var createdAt = DateTime.SpecifyKind(
+                reader.GetDateTime(5),
+                DateTimeKind.Utc);
+
+            proposals.Add(
+                Proposal.Restore(
+                    reader.GetGuid(0),
+                    reader.GetString(1),
+                    reader.GetDecimal(2),
+                    reader.GetInt32(3),
+                    reader.GetDecimal(4),
+                    createdAt,
+                    proposalStatus,
+                    decision));
+        }
+
+        return proposals;
+    }
+    public async Task<ProposalDashboardSummary> GetDashboardAsync(
+        CancellationToken ct)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(ct);
+
+        await using var command = connection.CreateCommand();
+
+        command.CommandText = """
+            SELECT
+                COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE STATUS = 'Pending')::int AS pending,
+                COUNT(*) FILTER (WHERE STATUS = 'Approved')::int AS approved,
+                COUNT(*) FILTER (WHERE STATUS = 'ManualReview')::int AS manual_review,
+                COUNT(*) FILTER (WHERE STATUS = 'Rejected')::int AS rejected,
+                COALESCE(SUM(AMOUNT), 0) AS total_amount
+            FROM CREDIT_PROPOSALS
+            """;
+
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        if (!await reader.ReadAsync(ct))
+            return new ProposalDashboardSummary(0, 0, 0, 0, 0, 0m);
+
+        return new ProposalDashboardSummary(
+            reader.GetInt32(0),
+            reader.GetInt32(1),
+            reader.GetInt32(2),
+            reader.GetInt32(3),
+            reader.GetInt32(4),
+            reader.GetDecimal(5));
+    }
     public async Task<bool> SaveDecisionIfPendingAsync(Proposal p, CancellationToken ct)
     {
-        var decision = p.Decision ?? throw new InvalidOperationException("Proposta nÃ£o analisada.");
+        var decision = p.Decision ?? throw new InvalidOperationException("Proposta não analisada.");
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
@@ -72,4 +162,6 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
     private static void Add(NpgsqlCommand command, string name, NpgsqlDbType type, object value)
         => command.Parameters.Add(new NpgsqlParameter(name, type) { Value = value });
 }
+
+
 
