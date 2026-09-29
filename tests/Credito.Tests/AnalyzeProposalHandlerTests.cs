@@ -91,6 +91,28 @@ public sealed class AnalyzeProposalHandlerTests
             return Task.FromResult(proposals);
         }
 
+        public Task<PagedResult<Proposal>> ListAsync(
+
+            ProposalStatus? status,
+
+            int page,
+
+            int pageSize,
+
+            CancellationToken cancellationToken)
+
+            => Task.FromResult(
+
+                new PagedResult<Proposal>(
+
+                    Array.Empty<Proposal>(),
+
+                    page,
+
+                    pageSize,
+
+                    0));
+
         public Task<ProposalDashboardSummary> GetDashboardAsync(
             CancellationToken cancellationToken)
         {

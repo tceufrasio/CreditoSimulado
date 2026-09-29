@@ -46,8 +46,8 @@
     </div>
 
     <span class="result-count">
-      {{ proposals.length }}
-      {{ proposals.length === 1 ? 'proposta' : 'propostas' }}
+      {{ totalItems }}
+      {{ totalItems === 1 ? 'proposta' : 'propostas' }}
     </span>
   </section>
 
@@ -87,7 +87,7 @@
             </thead>
 
             <tbody>
-              @for (proposal of paginatedProposals; track proposal.id) {
+              @for (proposal of proposals; track proposal.id) {
                 <tr>
                   <td>
                     <div class="customer">
@@ -160,7 +160,7 @@
             Exibindo
             <strong>{{ firstItem }}–{{ lastItem }}</strong>
             de
-            <strong>{{ proposals.length }}</strong>
+            <strong>{{ totalItems }}</strong>
             propostas
           </div>
 

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import {
+  PagedResponse,
   Proposal,
   ProposalStatus
 } from '../models/proposal';
@@ -26,12 +27,24 @@ export class ProposalService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = 'http://localhost:5000/api/proposals';
 
-  list(status?: ProposalStatus): Observable<Proposal[]> {
-    const url = status
-      ? `${this.apiUrl}?status=${status}`
-      : this.apiUrl;
+  list(
+    status?: ProposalStatus,
+    page = 1,
+    pageSize = 5
+  ): Observable<PagedResponse<Proposal>> {
+    const params: Record<string, string> = {
+      page: page.toString(),
+      pageSize: pageSize.toString()
+    };
 
-    return this.http.get<Proposal[]>(url);
+    if (status) {
+      params['status'] = status;
+    }
+
+    return this.http.get<PagedResponse<Proposal>>(
+      this.apiUrl,
+      { params }
+    );
   }
 
   getById(id: string): Observable<Proposal> {

@@ -26,3 +26,10 @@ export interface Proposal {
   status: ProposalStatus;
   decision: CreditDecision | null;
 }
+export interface PagedResponse<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}

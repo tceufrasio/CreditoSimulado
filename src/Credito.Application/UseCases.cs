@@ -6,7 +6,11 @@ public interface IProposalRepository
 {
     Task InsertAsync(Proposal proposal, CancellationToken cancellationToken);
     Task<Proposal?> GetAsync(Guid id, CancellationToken cancellationToken);
-    Task<IReadOnlyList<Proposal>> ListAsync(ProposalStatus? status, CancellationToken cancellationToken);
+    Task<PagedResult<Proposal>> ListAsync(
+        ProposalStatus? status,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken);
     Task<ProposalDashboardSummary> GetDashboardAsync(CancellationToken cancellationToken);
     Task<bool> SaveDecisionIfPendingAsync(Proposal proposal, CancellationToken cancellationToken);
     Task<bool> SaveManualDecisionAsync(Proposal proposal, CancellationToken cancellationToken);
@@ -62,14 +66,44 @@ public sealed class GetProposalHandler(IProposalRepository repository)
         => repository.GetAsync(query.Id, ct);
 }
 
-public sealed record ListProposalsQuery(ProposalStatus? Status);
-
-public sealed class ListProposalsHandler(IProposalRepository repository)
+public sealed record PagedResult<T>(
+    IReadOnlyList<T> Items,
+    int Page,
+    int PageSize,
+    int TotalItems)
 {
-    public Task<IReadOnlyList<Proposal>> HandleAsync(
+    public int TotalPages =>
+        TotalItems == 0
+            ? 0
+            : (int)Math.Ceiling(TotalItems / (double)PageSize);
+}
+
+public sealed record ListProposalsQuery(
+    ProposalStatus? Status,
+    int Page = 1,
+    int PageSize = 10);
+
+public sealed class ListProposalsHandler(
+    IProposalRepository repository)
+{
+    public Task<PagedResult<Proposal>> HandleAsync(
         ListProposalsQuery query,
         CancellationToken ct)
-        => repository.ListAsync(query.Status, ct);
+    {
+        if (query.Page < 1)
+            throw new ArgumentException(
+                "A página deve ser maior ou igual a 1.");
+
+        if (query.PageSize is < 1 or > 100)
+            throw new ArgumentException(
+                "O tamanho da página deve estar entre 1 e 100.");
+
+        return repository.ListAsync(
+            query.Status,
+            query.Page,
+            query.PageSize,
+            ct);
+    }
 }
 public sealed record ProposalDashboardSummary(
     int Total,
@@ -146,5 +180,3 @@ public sealed class ManualDecisionHandler(
             "A proposta não está mais disponível para decisão manual.");
     }
 }
-
-

@@ -32,23 +32,38 @@ export class ProposalList implements OnInit {
 
   currentPage = 1;
   pageSize = 5;
+  totalItems = 0;
+  totalPages = 0;
+
   readonly pageSizeOptions = [5, 10, 20, 50, 100];
 
   ngOnInit(): void {
-    this.load();
+    this.loadPage();
   }
 
   load(status: ProposalStatus | '' = this.selectedStatus): void {
     this.selectedStatus = status;
     this.currentPage = 1;
+    this.loadPage();
+  }
+
+  private loadPage(): void {
     this.loading = true;
     this.error = false;
 
     this.proposalService
-      .list(status || undefined)
+      .list(
+        this.selectedStatus || undefined,
+        this.currentPage,
+        this.pageSize
+      )
       .subscribe({
-        next: proposals => {
-          this.proposals = proposals;
+        next: result => {
+          this.proposals = result.items;
+          this.currentPage = result.page;
+          this.pageSize = result.pageSize;
+          this.totalItems = result.totalItems;
+          this.totalPages = result.totalPages;
           this.loading = false;
         },
         error: () => {
@@ -56,18 +71,6 @@ export class ProposalList implements OnInit {
           this.loading = false;
         }
       });
-  }
-
-  get paginatedProposals(): Proposal[] {
-    const start = (this.currentPage - 1) * this.pageSize;
-    return this.proposals.slice(start, start + this.pageSize);
-  }
-
-  get totalPages(): number {
-    return Math.max(
-      1,
-      Math.ceil(this.proposals.length / this.pageSize)
-    );
   }
 
   get pageNumbers(): number[] {
@@ -78,7 +81,7 @@ export class ProposalList implements OnInit {
   }
 
   get firstItem(): number {
-    if (this.proposals.length === 0) {
+    if (this.totalItems === 0) {
       return 0;
     }
 
@@ -88,20 +91,26 @@ export class ProposalList implements OnInit {
   get lastItem(): number {
     return Math.min(
       this.currentPage * this.pageSize,
-      this.proposals.length
+      this.totalItems
     );
   }
 
   changePageSize(): void {
     this.currentPage = 1;
+    this.loadPage();
   }
 
   goToPage(page: number): void {
-    if (page < 1 || page > this.totalPages) {
+    if (
+      page < 1 ||
+      page > this.totalPages ||
+      page === this.currentPage
+    ) {
       return;
     }
 
     this.currentPage = page;
+    this.loadPage();
   }
 
   previousPage(): void {
@@ -111,7 +120,6 @@ export class ProposalList implements OnInit {
   nextPage(): void {
     this.goToPage(this.currentPage + 1);
   }
-
   statusLabel(status: ProposalStatus): string {
     const labels: Record<ProposalStatus, string> = {
       Pending: 'Pendente',

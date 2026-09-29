@@ -130,22 +130,33 @@ app.MapPost("/api/proposals", async (
 
 app.MapGet("/api/proposals", async (
         ProposalStatus? status,
+        int? page,
+        int? pageSize,
         ListProposalsHandler handler,
         CancellationToken ct) =>
     {
-        var proposals = await handler.HandleAsync(
-            new ListProposalsQuery(status),
+        var result = await handler.HandleAsync(
+            new ListProposalsQuery(
+                status,
+                page ?? 1,
+                pageSize ?? 10),
             ct);
 
         return Results.Ok(
-            proposals.Select(ToResponse));
+            new PagedResponse<ProposalResponse>(
+                result.Items
+                    .Select(ToResponse)
+                    .ToArray(),
+                result.Page,
+                result.PageSize,
+                result.TotalItems,
+                result.TotalPages));
     })
     .WithTags("Proposals")
-    .WithSummary("Lista propostas de crédito")
-    .Produces<IEnumerable<ProposalResponse>>(StatusCodes.Status200OK)
+    .WithSummary("Lista propostas de crédito com paginação")
+    .Produces<PagedResponse<ProposalResponse>>(StatusCodes.Status200OK)
     .ProducesProblem(StatusCodes.Status400BadRequest)
     .ProducesProblem(StatusCodes.Status500InternalServerError);
-
 app.MapGet("/api/proposals/{id:guid}", async (
         Guid id,
         GetProposalHandler handler,
@@ -230,6 +241,11 @@ static ProposalResponse ToResponse(Proposal proposal) => new(
     proposal.Status.ToString(),
     proposal.Decision);
 
+public sealed record PagedResponse<T>(
+    IReadOnlyList<T> Items,
+    int Page,
+    int PageSize,
+    int TotalItems,
+    int TotalPages);
+
 public partial class Program { }
-
-
