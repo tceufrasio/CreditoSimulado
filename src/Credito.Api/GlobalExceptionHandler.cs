@@ -15,6 +15,12 @@ public sealed class GlobalExceptionHandler(
             ArgumentException =>
                 StatusCodes.Status400BadRequest,
 
+            BadHttpRequestException =>
+                StatusCodes.Status400BadRequest,
+
+            System.Text.Json.JsonException =>
+                StatusCodes.Status400BadRequest,
+
             InvalidOperationException =>
                 StatusCodes.Status409Conflict,
 
@@ -36,7 +42,9 @@ public sealed class GlobalExceptionHandler(
             StatusCodes.Status400BadRequest =>
                 (
                     "Requisição inválida",
-                    exception.Message
+                    exception is BadHttpRequestException
+                        ? "O corpo da requisição contém dados inválidos."
+                        : exception.Message
                 ),
 
             StatusCodes.Status409Conflict =>

@@ -145,11 +145,19 @@ app.MapPut("/api/credit-rate", async (
     .ProducesProblem(StatusCodes.Status400BadRequest)
     .ProducesProblem(StatusCodes.Status500InternalServerError);
 app.MapPost("/api/proposals", async (
-        CreateProposalCommand input,
+        CreateProposalRequest input,
         CreateProposalHandler handler,
         CancellationToken ct) =>
     {
-        var proposal = await handler.HandleAsync(input, ct);
+        var command = new CreateProposalCommand(
+            input.CustomerReference,
+            input.Amount,
+            input.TermMonths,
+            input.MonthlyIncome);
+
+        var proposal = await handler.HandleAsync(
+            command,
+            ct);
 
         return Results.Created(
             $"/api/proposals/{proposal.Id}",
