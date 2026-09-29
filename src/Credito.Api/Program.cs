@@ -32,6 +32,8 @@ builder.Services.AddSingleton<IProposalRepository>(
 builder.Services.AddSingleton<ICreditRateRepository>(
     new PostgresCreditRateRepository(connection));
 
+builder.Services.AddSingleton(
+    new PostgresReadinessCheck(connection));
 builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -64,6 +66,37 @@ app.MapGet("/health", () =>
     .WithSummary("Verifica a disponibilidade da API")
     .Produces(StatusCodes.Status200OK);
 
+app.MapGet("/health/live", () =>
+        Results.Ok(new { status = "ok" }))
+    .WithTags("Health")
+    .WithSummary("Verifica se a API está em execução")
+    .Produces(StatusCodes.Status200OK);
+
+app.MapGet("/health/ready", async (
+        PostgresReadinessCheck readiness,
+        CancellationToken ct) =>
+    {
+        var isReady = await readiness.IsReadyAsync(ct);
+
+        return isReady
+            ? Results.Ok(new
+            {
+                status = "ready",
+                database = "available"
+            })
+            : Results.Json(
+                new
+                {
+                    status = "not_ready",
+                    database = "unavailable"
+                },
+                statusCode:
+                    StatusCodes.Status503ServiceUnavailable);
+    })
+    .WithTags("Health")
+    .WithSummary("Verifica se a API está pronta e o PostgreSQL está disponível")
+    .Produces(StatusCodes.Status200OK)
+    .Produces(StatusCodes.Status503ServiceUnavailable);
 app.MapGet("/api/dashboard", async (
         GetDashboardHandler handler,
         CancellationToken ct) =>
