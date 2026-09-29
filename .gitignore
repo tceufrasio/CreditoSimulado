@@ -1,0 +1,37 @@
+﻿# Build
+bin/
+obj/
+
+# Visual Studio / VS Code / JetBrains
+.vs/
+.vscode/
+.idea/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Tests / Coverage
+TestResults/
+coverage/
+coverage.*
+
+# Logs
+*.log
+
+# Environment / secrets
+.env
+.env.*
+appsettings.Local.json
+appsettings.*.Local.json
+
+# Certificates / keys
+*.pfx
+*.p12
+*.key
+
+# OS
+Thumbs.db
+.DS_Store

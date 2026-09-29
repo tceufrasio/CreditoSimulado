@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: credito-postgres
+    environment:
+      POSTGRES_DB: credito
+      POSTGRES_USER: credito
+      POSTGRES_PASSWORD: credito_local
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U credito -d credito"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - credito_postgres_data:/var/lib/postgresql/data
+      - ./db/02-schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+volumes:
+  credito_postgres_data:
