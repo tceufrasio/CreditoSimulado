@@ -219,6 +219,34 @@ O frontend consome a API REST e apresenta também o status de disponibilidade da
 
 ---
 
+## Demonstração
+
+### Dashboard
+
+Visão geral das propostas e principais indicadores da operação.
+
+![Dashboard do CréditoSimulado](docs/images/dashboard.png)
+
+### Propostas
+
+Consulta das propostas cadastradas e acompanhamento dos diferentes status do processo de análise.
+
+![Listagem de propostas](docs/images/propostas.png)
+
+### Detalhes da proposta
+
+Visualização dos dados da proposta e do resultado da análise de crédito.
+
+![Detalhes da proposta](docs/images/detalhe-proposta.png)
+
+### Taxa de Crédito
+
+Configuração da taxa mensal utilizada nas novas análises, preservando a taxa histórica das propostas já processadas.
+
+![Configuração da taxa de crédito](docs/images/taxa-credito.png)
+
+---
+
 ## PostgreSQL e Docker
 
 O PostgreSQL 17 é executado localmente através do Docker Compose.
