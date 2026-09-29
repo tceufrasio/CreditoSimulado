@@ -35,15 +35,23 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
         await using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT ID, CUSTOMER_REFERENCE, AMOUNT, TERM_MONTHS, MONTHLY_INCOME,
-                   CREATED_AT_UTC, STATUS, MONTHLY_PAYMENT, COMMITMENT_PERCENT, REASON
+                   CREATED_AT_UTC, STATUS, MONTHLY_PAYMENT, COMMITMENT_PERCENT, REASON, DECISION_SOURCE
             FROM CREDIT_PROPOSALS WHERE ID = @id
             """;
         Add(command, "id", NpgsqlDbType.Uuid, id);
         await using var reader = await command.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct)) return null;
         var status = Enum.Parse<ProposalStatus>(reader.GetString(6));
-        CreditDecision? decision = reader.IsDBNull(7) ? null : new CreditDecision(status,
-            reader.GetDecimal(7), reader.GetDecimal(8), reader.GetString(9));
+        CreditDecision? decision = reader.IsDBNull(7)
+            ? null
+            : new CreditDecision(
+                status,
+                reader.GetDecimal(7),
+                reader.GetDecimal(8),
+                reader.GetString(9),
+                reader.IsDBNull(10)
+                    ? DecisionSource.Automatic
+                    : Enum.Parse<DecisionSource>(reader.GetString(10)));
         var createdAt = DateTime.SpecifyKind(reader.GetDateTime(5), DateTimeKind.Utc);
         return Proposal.Restore(reader.GetGuid(0), reader.GetString(1),
             reader.GetDecimal(2), reader.GetInt32(3), reader.GetDecimal(4), createdAt,
@@ -61,7 +69,7 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
 
         command.CommandText = """
             SELECT ID, CUSTOMER_REFERENCE, AMOUNT, TERM_MONTHS, MONTHLY_INCOME,
-                   CREATED_AT_UTC, STATUS, MONTHLY_PAYMENT, COMMITMENT_PERCENT, REASON
+                   CREATED_AT_UTC, STATUS, MONTHLY_PAYMENT, COMMITMENT_PERCENT, REASON, DECISION_SOURCE
             FROM CREDIT_PROPOSALS
             WHERE (@status IS NULL OR STATUS = @status)
             ORDER BY CREATED_AT_UTC DESC
@@ -88,7 +96,10 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
                     proposalStatus,
                     reader.GetDecimal(7),
                     reader.GetDecimal(8),
-                    reader.GetString(9));
+                    reader.GetString(9),
+                    reader.IsDBNull(10)
+                        ? DecisionSource.Automatic
+                        : Enum.Parse<DecisionSource>(reader.GetString(10)));
 
             var createdAt = DateTime.SpecifyKind(
                 reader.GetDateTime(5),
@@ -155,13 +166,68 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
         Add(command, "payment", NpgsqlDbType.Numeric, decision.MonthlyPayment);
         Add(command, "percent", NpgsqlDbType.Numeric, decision.IncomeCommitmentPercent);
         Add(command, "reason", NpgsqlDbType.Varchar, decision.Reason);
+        Add(command, "decision_source", NpgsqlDbType.Varchar, decision.Source.ToString());
         Add(command, "id", NpgsqlDbType.Uuid, p.Id);
         return await command.ExecuteNonQueryAsync(ct) == 1;
     }
 
+    public async Task<bool> SaveManualDecisionAsync(
+        Proposal proposal,
+        CancellationToken ct)
+    {
+        var decision = proposal.Decision
+            ?? throw new InvalidOperationException(
+                "Proposta não possui decisão.");
+
+        if (decision.Source != DecisionSource.Manual)
+        {
+            throw new InvalidOperationException(
+                "A decisão informada não é manual.");
+        }
+
+        await using var connection =
+            new NpgsqlConnection(connectionString);
+
+        await connection.OpenAsync(ct);
+
+        await using var command =
+            connection.CreateCommand();
+
+        command.CommandText = """
+            UPDATE CREDIT_PROPOSALS
+            SET STATUS = @status,
+                REASON = @reason,
+                DECISION_SOURCE = @decision_source
+            WHERE ID = @id
+              AND STATUS = 'ManualReview'
+            """;
+
+        Add(
+            command,
+            "status",
+            NpgsqlDbType.Varchar,
+            decision.Status.ToString());
+
+        Add(
+            command,
+            "reason",
+            NpgsqlDbType.Varchar,
+            decision.Reason);
+
+        Add(
+            command,
+            "decision_source",
+            NpgsqlDbType.Varchar,
+            decision.Source.ToString());
+
+        Add(
+            command,
+            "id",
+            NpgsqlDbType.Uuid,
+            proposal.Id);
+
+        return await command.ExecuteNonQueryAsync(ct) == 1;
+    }
     private static void Add(NpgsqlCommand command, string name, NpgsqlDbType type, object value)
         => command.Parameters.Add(new NpgsqlParameter(name, type) { Value = value });
 }
-
-
-

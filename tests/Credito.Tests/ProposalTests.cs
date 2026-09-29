@@ -103,4 +103,108 @@ public sealed class ProposalTests
         Assert.Equal(firstDecision, proposal.Decision);
         Assert.Equal(firstDecision.Status, proposal.Status);
     }
-}
+
+    [Fact]
+    public void ApproveManually_WhenInManualReview_ApprovesProposal()
+    {
+        var proposal = Proposal.Create(
+            "MANUAL001",
+            50000m,
+            36,
+            7000m,
+            DateTime.UtcNow);
+
+        proposal.Analyze();
+
+        Assert.Equal(
+            ProposalStatus.ManualReview,
+            proposal.Status);
+
+        var decision = proposal.ApproveManually(
+            "Capacidade de pagamento validada pelo analista.");
+
+        Assert.Equal(
+            ProposalStatus.Approved,
+            proposal.Status);
+
+        Assert.Equal(
+            ProposalStatus.Approved,
+            decision.Status);
+
+        Assert.Equal(
+            DecisionSource.Manual,
+            decision.Source);
+
+        Assert.Equal(
+            "Capacidade de pagamento validada pelo analista.",
+            decision.Reason);
+    }
+
+    [Fact]
+    public void RejectManually_WhenInManualReview_RejectsProposal()
+    {
+        var proposal = Proposal.Create(
+            "MANUAL002",
+            50000m,
+            36,
+            7000m,
+            DateTime.UtcNow);
+
+        proposal.Analyze();
+
+        Assert.Equal(
+            ProposalStatus.ManualReview,
+            proposal.Status);
+
+        var decision = proposal.RejectManually(
+            "Documentação insuficiente para aprovação.");
+
+        Assert.Equal(
+            ProposalStatus.Rejected,
+            proposal.Status);
+
+        Assert.Equal(
+            ProposalStatus.Rejected,
+            decision.Status);
+
+        Assert.Equal(
+            DecisionSource.Manual,
+            decision.Source);
+    }
+
+    [Fact]
+    public void ManualDecision_WhenProposalIsNotInManualReview_Throws()
+    {
+        var proposal = Proposal.Create(
+            "MANUAL003",
+            10000m,
+            12,
+            10000m,
+            DateTime.UtcNow);
+
+        proposal.Analyze();
+
+        Assert.Equal(
+            ProposalStatus.Approved,
+            proposal.Status);
+
+        Assert.Throws<InvalidOperationException>(
+            () => proposal.ApproveManually(
+                "Tentativa de decisão manual."));
+    }
+
+    [Fact]
+    public void ManualDecision_WithInvalidReason_Throws()
+    {
+        var proposal = Proposal.Create(
+            "MANUAL004",
+            50000m,
+            36,
+            7000m,
+            DateTime.UtcNow);
+
+        proposal.Analyze();
+
+        Assert.Throws<ArgumentException>(
+            () => proposal.ApproveManually("abc"));
+    }}

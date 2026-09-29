@@ -9,6 +9,7 @@ public interface IProposalRepository
     Task<IReadOnlyList<Proposal>> ListAsync(ProposalStatus? status, CancellationToken cancellationToken);
     Task<ProposalDashboardSummary> GetDashboardAsync(CancellationToken cancellationToken);
     Task<bool> SaveDecisionIfPendingAsync(Proposal proposal, CancellationToken cancellationToken);
+    Task<bool> SaveManualDecisionAsync(Proposal proposal, CancellationToken cancellationToken);
 }
 
 public sealed record CreateProposalCommand(string CustomerReference, decimal Amount,
@@ -68,4 +69,49 @@ public sealed class AnalyzeProposalHandler(IProposalRepository repository)
     }
 }
 
+public sealed record ManualDecisionCommand(
+    Guid Id,
+    ProposalStatus Decision,
+    string Reason);
+
+public sealed class ManualDecisionHandler(
+    IProposalRepository repository)
+{
+    public async Task<Proposal?> HandleAsync(
+        ManualDecisionCommand command,
+        CancellationToken ct)
+    {
+        var proposal = await repository.GetAsync(
+            command.Id,
+            ct);
+
+        if (proposal is null)
+            return null;
+
+        switch (command.Decision)
+        {
+            case ProposalStatus.Approved:
+                proposal.ApproveManually(command.Reason);
+                break;
+
+            case ProposalStatus.Rejected:
+                proposal.RejectManually(command.Reason);
+                break;
+
+            default:
+                throw new ArgumentException(
+                    "A decisão manual deve ser Approved ou Rejected.");
+        }
+
+        if (await repository.SaveManualDecisionAsync(
+                proposal,
+                ct))
+        {
+            return proposal;
+        }
+
+        throw new InvalidOperationException(
+            "A proposta não está mais disponível para decisão manual.");
+    }
+}
 

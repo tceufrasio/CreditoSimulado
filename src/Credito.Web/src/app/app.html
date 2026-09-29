@@ -1,0 +1,66 @@
+﻿<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">CS</div>
+
+      <div class="brand-text">
+        <strong>Crédito</strong>
+        <span>Simulado</span>
+      </div>
+    </div>
+
+    <nav class="navigation">
+      <a routerLink="/dashboard" routerLinkActive="active">
+        <span class="nav-icon">▦</span>
+        <span>Dashboard</span>
+      </a>
+
+      <a
+        routerLink="/proposals"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }">
+        <span class="nav-icon">▤</span>
+        <span>Propostas</span>
+      </a>
+
+      <a routerLink="/proposals/new" routerLinkActive="active">
+        <span class="nav-icon">＋</span>
+        <span>Nova proposta</span>
+      </a>
+    </nav>
+  </aside>
+
+  <section class="workspace">
+    <header class="topbar">
+      <div>
+        <strong>CréditoSimulado</strong>
+        <span>Plataforma de análise de crédito</span>
+      </div>
+
+      <div
+        class="api-status"
+        [class.online]="apiStatus === 'online'"
+        [class.offline]="apiStatus === 'offline'"
+        [class.checking]="apiStatus === 'checking'">
+
+        <span></span>
+
+        @switch (apiStatus) {
+          @case ('online') {
+            API Online
+          }
+          @case ('offline') {
+            API Offline
+          }
+          @default {
+            Verificando API...
+          }
+        }
+      </div>
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </section>
+</div>

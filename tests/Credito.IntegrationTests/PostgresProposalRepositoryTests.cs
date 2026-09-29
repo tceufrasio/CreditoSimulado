@@ -240,6 +240,114 @@ public sealed class PostgresProposalRepositoryTests
 
             await command.ExecuteNonQueryAsync();
         }
-    }}
+    }
+    [Fact]
+    public async Task ManualReview_CanBeApprovedAndPersisted()
+    {
+        var connectionString =
+            Environment.GetEnvironmentVariable(
+                "CREDITO_TEST_POSTGRES")
+            ?? throw new InvalidOperationException(
+                "Configure CREDITO_TEST_POSTGRES para o banco de testes.");
+
+        var repo =
+            new PostgresProposalRepository(connectionString);
+
+        var proposal = Proposal.Create(
+            "MAN" + Guid.NewGuid().ToString("N")[..8],
+            50000m,
+            36,
+            7000m,
+            DateTime.UtcNow);
+
+        try
+        {
+            await repo.InsertAsync(
+                proposal,
+                default);
+
+            proposal.Analyze();
+
+            Assert.Equal(
+                ProposalStatus.ManualReview,
+                proposal.Status);
+
+            Assert.Equal(
+                DecisionSource.Automatic,
+                proposal.Decision!.Source);
+
+            Assert.True(
+                await repo.SaveDecisionIfPendingAsync(
+                    proposal,
+                    default));
+
+            var persistedManualReview =
+                await repo.GetAsync(
+                    proposal.Id,
+                    default);
+
+            Assert.NotNull(persistedManualReview);
+
+            Assert.Equal(
+                ProposalStatus.ManualReview,
+                persistedManualReview!.Status);
+
+            persistedManualReview.ApproveManually(
+                "Renda e capacidade de pagamento validadas manualmente.");
+
+            Assert.True(
+                await repo.SaveManualDecisionAsync(
+                    persistedManualReview,
+                    default));
+
+            var persisted =
+                await repo.GetAsync(
+                    proposal.Id,
+                    default);
+
+            Assert.NotNull(persisted);
+
+            Assert.Equal(
+                ProposalStatus.Approved,
+                persisted!.Status);
+
+            Assert.NotNull(
+                persisted.Decision);
+
+            Assert.Equal(
+                ProposalStatus.Approved,
+                persisted.Decision!.Status);
+
+            Assert.Equal(
+                DecisionSource.Manual,
+                persisted.Decision.Source);
+
+            Assert.Equal(
+                "Renda e capacidade de pagamento validadas manualmente.",
+                persisted.Decision.Reason);
+        }
+        finally
+        {
+            await using var connection =
+                new NpgsqlConnection(connectionString);
+
+            await connection.OpenAsync();
+
+            await using var command =
+                connection.CreateCommand();
+
+            command.CommandText = """
+                DELETE FROM credit_proposals
+                WHERE id = @id
+                """;
+
+            command.Parameters.AddWithValue(
+                "id",
+                proposal.Id);
+
+            await command.ExecuteNonQueryAsync();
+        }
+    }
 
 
+}

@@ -1,0 +1,199 @@
+﻿<section class="page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">OPERAÇÕES</span>
+      <h1>Propostas</h1>
+      <p>Consulte e acompanhe as propostas de crédito cadastradas.</p>
+    </div>
+
+    <a routerLink="/proposals/new" class="primary-button">
+      <span>+</span>
+      Nova proposta
+    </a>
+  </header>
+
+  <section class="toolbar">
+    <div class="filters">
+      <button
+        [class.active]="selectedStatus === ''"
+        (click)="load('')">
+        Todas
+      </button>
+
+      <button
+        [class.active]="selectedStatus === 'Pending'"
+        (click)="load('Pending')">
+        Pendentes
+      </button>
+
+      <button
+        [class.active]="selectedStatus === 'Approved'"
+        (click)="load('Approved')">
+        Aprovadas
+      </button>
+
+      <button
+        [class.active]="selectedStatus === 'ManualReview'"
+        (click)="load('ManualReview')">
+        Revisão manual
+      </button>
+
+      <button
+        [class.active]="selectedStatus === 'Rejected'"
+        (click)="load('Rejected')">
+        Rejeitadas
+      </button>
+    </div>
+
+    <span class="result-count">
+      {{ proposals.length }}
+      {{ proposals.length === 1 ? 'proposta' : 'propostas' }}
+    </span>
+  </section>
+
+  @if (loading) {
+    <div class="state-card">
+      Carregando propostas...
+    </div>
+  }
+
+  @if (error) {
+    <div class="state-card error">
+      Não foi possível carregar as propostas.
+    </div>
+  }
+
+  @if (!loading && !error) {
+    <section class="table-card">
+      @if (proposals.length === 0) {
+        <div class="empty-state">
+          <div class="empty-icon">▤</div>
+          <h2>Nenhuma proposta encontrada</h2>
+          <p>Não existem propostas para o filtro selecionado.</p>
+        </div>
+      } @else {
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Valor solicitado</th>
+                <th>Prazo</th>
+                <th>Renda mensal</th>
+                <th>Status</th>
+                <th>Cadastro</th>
+                <th></th>
+              </tr>
+            </thead>
+
+            <tbody>
+              @for (proposal of paginatedProposals; track proposal.id) {
+                <tr>
+                  <td>
+                    <div class="customer">
+                      <span class="customer-avatar">
+                        {{ proposal.customerReference.charAt(0) }}
+                      </span>
+
+                      <div>
+                        <strong>{{ proposal.customerReference }}</strong>
+                        <small>
+                          {{ proposal.id.substring(0, 8) }}
+                        </small>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td class="money">
+                    {{ proposal.amount | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}
+                  </td>
+
+                  <td>
+                    {{ proposal.termMonths }} meses
+                  </td>
+
+                  <td>
+                    {{ proposal.monthlyIncome | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}
+                  </td>
+
+                  <td>
+                    <span
+                      class="status"
+                      [class.pending]="proposal.status === 'Pending'"
+                      [class.approved]="proposal.status === 'Approved'"
+                      [class.review]="proposal.status === 'ManualReview'"
+                      [class.rejected]="proposal.status === 'Rejected'">
+                      {{ statusLabel(proposal.status) }}
+                    </span>
+                  </td>
+
+                  <td>
+                    {{ proposal.createdAtUtc | date:'dd/MM/yyyy HH:mm' }}
+                  </td>
+
+                  <td class="actions">
+                    <a [routerLink]="['/proposals', proposal.id]">
+                      Ver detalhes →
+                    </a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <div class="pagination-size">
+            <span>Registros por página</span>
+
+            <select
+              [(ngModel)]="pageSize"
+              (ngModelChange)="changePageSize()">
+              @for (size of pageSizeOptions; track size) {
+                <option [ngValue]="size">
+                  {{ size }}
+                </option>
+              }
+            </select>
+          </div>
+
+          <div class="pagination-info">
+            Exibindo
+            <strong>{{ firstItem }}–{{ lastItem }}</strong>
+            de
+            <strong>{{ proposals.length }}</strong>
+            propostas
+          </div>
+
+          <div class="pagination-pages">
+            <button
+              type="button"
+              class="page-arrow"
+              [disabled]="currentPage === 1"
+              (click)="previousPage()"
+              aria-label="Página anterior">
+              ‹
+            </button>
+
+            @for (page of pageNumbers; track page) {
+              <button
+                type="button"
+                class="page-number"
+                [class.active]="page === currentPage"
+                (click)="goToPage(page)">
+                {{ page }}
+              </button>
+            }
+
+            <button
+              type="button"
+              class="page-arrow"
+              [disabled]="currentPage === totalPages"
+              (click)="nextPage()"
+              aria-label="Próxima página">
+              ›
+            </button>
+          </div>
+        </div>      }
+    </section>
+  }
+</section>

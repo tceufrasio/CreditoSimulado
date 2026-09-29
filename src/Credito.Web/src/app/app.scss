@@ -1,0 +1,210 @@
+﻿:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  min-height: 100vh;
+  background: #f5f7fb;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 18px;
+  background: #0f172a;
+  color: #fff;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 8px 28px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #2563eb;
+  font-weight: 800;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+
+  strong {
+    font-size: 17px;
+  }
+
+  span {
+    margin-top: 3px;
+    color: #94a3b8;
+    font-size: 13px;
+  }
+}
+
+.navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 46px;
+    padding: 0 14px;
+    border-radius: 10px;
+    color: #cbd5e1;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: 0.2s ease;
+
+    &:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    &.active {
+      color: #fff;
+      background: #2563eb;
+    }
+  }
+}
+
+.nav-icon {
+  width: 22px;
+  text-align: center;
+  font-size: 18px;
+}
+
+
+
+
+
+.workspace {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: 72px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+
+  > div:first-child {
+    display: flex;
+    flex-direction: column;
+
+    strong {
+      color: #111827;
+      font-size: 15px;
+    }
+
+    span {
+      margin-top: 2px;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+  }
+}
+
+.api-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  color: #475569;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+
+  span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+  }
+}
+
+.content {
+  width: 100%;
+  flex: 1;
+  padding: 32px;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 82px minmax(0, 1fr);
+  }
+
+  .brand-text,
+  .navigation a span:last-child,
+
+  .brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .navigation a {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .content {
+    padding: 22px;
+  }
+}
+
+
+.api-status {
+  span {
+    background: #94a3b8;
+  }
+
+  &.online {
+    color: #166534;
+
+    span {
+      background: #22c55e;
+    }
+  }
+
+  &.offline {
+    color: #b91c1c;
+    background: #fef2f2;
+    border-color: #fecaca;
+
+    span {
+      background: #ef4444;
+    }
+  }
+
+  &.checking {
+    color: #64748b;
+
+    span {
+      background: #94a3b8;
+    }
+  }
+}

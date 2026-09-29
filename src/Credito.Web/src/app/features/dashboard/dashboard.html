@@ -1,0 +1,133 @@
+﻿<section class="page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">VISÃO GERAL</span>
+      <h1>Dashboard</h1>
+      <p>Acompanhe as propostas e o volume das operações de crédito.</p>
+    </div>
+
+    <a routerLink="/proposals/new" class="primary-button">
+      <span>+</span>
+      Nova proposta
+    </a>
+  </header>
+
+  @if (loading) {
+    <div class="state-card">
+      Carregando informações...
+    </div>
+  }
+
+  @if (error) {
+    <div class="state-card error">
+      Não foi possível carregar o dashboard.
+      Verifique se a API .NET está em execução.
+    </div>
+  }
+
+  @if (summary) {
+    <div class="cards">
+      <article class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">Total de propostas</span>
+          <span class="metric-icon">▤</span>
+        </div>
+
+        <strong>{{ summary.total }}</strong>
+        <small>Operações cadastradas</small>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">Aprovadas</span>
+          <span class="metric-icon success">✓</span>
+        </div>
+
+        <strong>{{ summary.approved }}</strong>
+        <small>Créditos aprovados</small>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">Pendentes</span>
+          <span class="metric-icon warning">◷</span>
+        </div>
+
+        <strong>{{ summary.pending }}</strong>
+        <small>Aguardando análise</small>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">Volume solicitado</span>
+          <span class="metric-icon money">R$</span>
+        </div>
+
+        <strong class="money-value">
+          {{ summary.totalAmount | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}
+        </strong>
+
+        <small>Valor total das propostas</small>
+      </article>
+    </div>
+
+    <div class="secondary-grid">
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <span class="eyebrow">STATUS</span>
+            <h2>Distribuição das propostas</h2>
+          </div>
+        </div>
+
+        <div class="status-list">
+          <div>
+            <span>
+              <i class="dot approved"></i>
+              Aprovadas
+            </span>
+            <strong>{{ summary.approved }}</strong>
+          </div>
+
+          <div>
+            <span>
+              <i class="dot pending"></i>
+              Pendentes
+            </span>
+            <strong>{{ summary.pending }}</strong>
+          </div>
+
+          <div>
+            <span>
+              <i class="dot review"></i>
+              Revisão manual
+            </span>
+            <strong>{{ summary.manualReview }}</strong>
+          </div>
+
+          <div>
+            <span>
+              <i class="dot rejected"></i>
+              Rejeitadas
+            </span>
+            <strong>{{ summary.rejected }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel highlight-panel">
+        <span class="eyebrow">OPERAÇÃO</span>
+        <h2>Simulação de crédito</h2>
+
+        <p>
+          Cadastre uma proposta e execute a análise de crédito
+          diretamente pela plataforma.
+        </p>
+
+        <a routerLink="/proposals/new">
+          Criar nova proposta →
+        </a>
+      </section>
+    </div>
+  }
+</section>

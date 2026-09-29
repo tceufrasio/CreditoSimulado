@@ -40,6 +40,7 @@ builder.Services.AddScoped<GetProposalHandler>();
 builder.Services.AddScoped<ListProposalsHandler>();
 builder.Services.AddScoped<GetDashboardHandler>();
 builder.Services.AddScoped<AnalyzeProposalHandler>();
+builder.Services.AddScoped<ManualDecisionHandler>();
 
 var app = builder.Build();
 
@@ -148,6 +149,34 @@ app.MapPost("/api/proposals/{id:guid}/analyze", async (
     .WithSummary("Executa a análise de crédito da proposta")
     .Produces<ProposalResponse>(StatusCodes.Status200OK)
     .ProducesProblem(StatusCodes.Status404NotFound)
+    .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+app.MapPost("/api/proposals/{id:guid}/manual-decision", async (
+        Guid id,
+        ManualDecisionRequest input,
+        ManualDecisionHandler handler,
+        CancellationToken ct) =>
+    {
+        var proposal = await handler.HandleAsync(
+            new ManualDecisionCommand(
+                id,
+                input.Decision,
+                input.Reason),
+            ct);
+
+        return proposal is null
+            ? Results.Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Proposta não encontrada",
+                detail: $"Não foi encontrada uma proposta com o ID {id}.")
+            : Results.Ok(ToResponse(proposal));
+    })
+    .WithTags("Proposals")
+    .WithSummary("Registra a decisão manual de uma proposta em revisão")
+    .Produces<ProposalResponse>(StatusCodes.Status200OK)
+    .ProducesProblem(StatusCodes.Status400BadRequest)
+    .ProducesProblem(StatusCodes.Status404NotFound)
+    .ProducesProblem(StatusCodes.Status409Conflict)
     .ProducesProblem(StatusCodes.Status500InternalServerError);
 
 app.Run();

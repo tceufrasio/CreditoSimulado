@@ -52,10 +52,14 @@ public sealed class AnalyzeProposalHandlerTests
 
             return Task.FromResult(summary);
         }
+        public Task<bool> SaveManualDecisionAsync(
+            Proposal proposal,
+            CancellationToken cancellationToken)
+        {
+            this.proposal = proposal;
+            return Task.FromResult(true);
+        }
         public Task<bool> SaveDecisionIfPendingAsync(Proposal p, CancellationToken ct)
         { SaveCount++; return Task.FromResult(true); }
     }
 }
-
-
-
