@@ -1,148 +1,411 @@
-﻿# CreditoSimulado
+﻿# CréditoSimulado
 
-API REST para simulação e análise de propostas de crédito desenvolvida em C# e .NET 10.
+Aplicação full stack para simulação, análise e gerenciamento de propostas de crédito, desenvolvida com **.NET 10, ASP.NET Core, Angular 20, PostgreSQL e Docker**.
 
-Projeto criado para estudo e demonstração prática de Clean Architecture, CQRS, DDD, SOLID, PostgreSQL, APIs REST e testes automatizados.
+O projeto demonstra na prática organização arquitetural, regras de domínio, APIs REST, persistência relacional, frontend SPA, testes automatizados e integração contínua.
 
-> Este sistema não concede crédito real. As regras e decisões são exclusivamente para simulação.
+> **Aviso:** este projeto possui finalidade exclusivamente técnica e educacional. Não realiza concessão real de crédito.
+
+---
+
+## Funcionalidades
+
+- Cadastro de propostas de crédito
+- Consulta e filtro de propostas
+- Análise automática de crédito
+- Classificação em aprovação, revisão manual ou rejeição
+- Aprovação e rejeição manual
+- Dashboard com indicadores
+- Taxa de crédito configurável
+- Preservação da taxa utilizada em cada análise
+- Monitoramento da disponibilidade da API pelo frontend
+
+---
 
 ## Tecnologias
 
+### Backend
+
 - C# / .NET 10
 - ASP.NET Core
-- PostgreSQL 17
+- Minimal APIs
 - Npgsql
-- Docker Compose
-- Clean Architecture
-- CQRS
-- DDD
-- SOLID
-- REST
 - OpenAPI / Scalar
 - ProblemDetails
+
+### Frontend
+
+- Angular 20
+- TypeScript
+- Angular Router
+- Angular Forms
+- HttpClient
+- RxJS
+- HTML / CSS responsivo
+
+### Dados e infraestrutura
+
+- PostgreSQL 17
+- Docker / Docker Compose
+- Git
+- GitHub Actions
+
+### Arquitetura e práticas
+
+- Clean Architecture
+- Domain-Driven Design (DDD)
+- CQRS
+- Repository Pattern
+- Dependency Injection
+- SOLID
+- Separação de responsabilidades
+- Regras de negócio encapsuladas no domínio
+
+### Testes
+
 - xUnit
-- Testes unitários e de integração
+- Testes unitários
+- Testes de integração com PostgreSQL
+- **35 testes automatizados**
+
+---
 
 ## Arquitetura
 
-A solução é dividida em:
+```text
+Angular 20
+    |
+    | HTTP / JSON
+    v
+ASP.NET Core API
+    |
+    v
+Application
+Commands / Queries / Handlers
+    |
+    v
+Domain
+Entidades / Value Objects / Regras
+    |
+    v
+Infrastructure
+Repositories / Npgsql
+    |
+    v
+PostgreSQL 17
+```
 
-- `Credito.Domain`: modelo e regras de negócio.
-- `Credito.Application`: Commands, Queries, Handlers e abstrações.
-- `Credito.Infrastructure`: persistência PostgreSQL com Npgsql.
-- `Credito.Api`: API REST e composição das dependências.
-- `Credito.Tests`: testes unitários.
-- `Credito.IntegrationTests`: testes de integração com PostgreSQL.
+### Estrutura da solução
 
-Fluxo principal:
+| Projeto | Responsabilidade |
+|---|---|
+| `Credito.Domain` | Entidades, value objects e regras de negócio |
+| `Credito.Application` | Commands, queries, handlers e abstrações |
+| `Credito.Infrastructure` | Persistência PostgreSQL e implementação dos repositórios |
+| `Credito.Api` | API REST e composição das dependências |
+| `Credito.Web` | Aplicação Angular |
+| `Credito.Tests` | Testes unitários |
+| `Credito.IntegrationTests` | Testes de integração com PostgreSQL |
 
-    HTTP
-      |
-      v
-    API
-      |
-      v
-    Application
-      |
-      v
-    Domain
-      |
-      v
-    IProposalRepository
-      |
-      v
-    PostgreSQL
+---
 
-## Regras de crédito
+## Fluxo da análise de crédito
 
-A proposta contém referência do cliente, valor solicitado, prazo e renda mensal declarada.
+Toda proposta é criada inicialmente com status `Pending`.
 
-A prestação utiliza Tabela Price com taxa simulada de 1,5% ao mês.
+Após a análise:
 
-- comprometimento menor que 25%: Approved
-- entre 25% e 30%: ManualReview
-- acima de 30%: Rejected
+```text
+                    +--> Approved
+                    |
+Pending --> Analyze +--> ManualReview --> Decisão manual
+                    |
+                    +--> Rejected
+```
 
-Uma proposta já analisada mantém sua decisão.
+A classificação utiliza o comprometimento da renda mensal:
 
-## API
+| Comprometimento | Resultado |
+|---|---|
+| Menor que 25% | `Approved` |
+| Entre 25% e 30% | `ManualReview` |
+| Acima de 30% | `Rejected` |
 
-Endpoints disponíveis:
+Quando uma proposta entra em `ManualReview`, ela pode posteriormente receber uma aprovação ou rejeição manual.
 
-    GET  /health
-    POST /api/proposals
-    GET  /api/proposals/{id}
-    POST /api/proposals/{id}/analyze
+A origem da decisão é registrada como `Automatic` ou `Manual`.
 
-A API utiliza ProblemDetails para padronização dos erros HTTP.
+---
 
-## PostgreSQL
+## Cálculo da prestação
 
-O PostgreSQL é executado localmente através de Docker Compose.
+A prestação é calculada utilizando a **Tabela Price**.
 
-Credenciais exclusivamente para desenvolvimento:
+A análise considera:
 
-    Database: credito
-    Username: credito
-    Password: credito_local
-    Port: 5432
+- valor solicitado;
+- prazo em meses;
+- renda mensal declarada;
+- taxa mensal vigente.
 
-Inicie o ambiente:
+A prestação calculada é utilizada para determinar o percentual de comprometimento da renda e, consequentemente, o resultado da análise.
 
-    .\scripts\setup-local.ps1
+---
 
-Configure a connection string no PowerShell:
+## Taxa de crédito configurável
 
-    $env:ConnectionStrings__Postgres = "Host=localhost;Port=5432;Database=credito;Username=credito;Password=credito_local"
+A taxa mensal utilizada nas análises é configurável e persistida no PostgreSQL.
 
-Execute:
+A configuração pode ser consultada e alterada tanto pela API quanto pela aplicação Angular.
 
-    dotnet run --project .\src\Credito.Api\Credito.Api.csproj
+```text
+GET /api/credit-rate
+PUT /api/credit-rate
+```
 
-API:
+Cada proposta analisada mantém a taxa utilizada naquele momento.
 
-    http://localhost:5000
+Exemplo:
 
-Scalar:
+```text
+Taxa vigente: 1,50%
+        |
+        +--> Proposta A analisada com 1,50%
 
-    http://localhost:5000/scalar/v1
+Taxa alterada para 1,60%
+        |
+        +--> Proposta A permanece com 1,50%
+        |
+        +--> Proposta B é analisada com 1,60%
+```
 
-OpenAPI:
+Isso preserva o histórico das análises e evita que alterações futuras na taxa modifiquem retroativamente propostas já processadas.
 
-    http://localhost:5000/openapi/v1.json
+---
 
-## Testes
+## API REST
 
-Configure o banco de integração:
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `GET` | `/health` | Verifica a disponibilidade da API |
+| `GET` | `/api/dashboard` | Obtém os indicadores do dashboard |
+| `GET` | `/api/credit-rate` | Consulta a taxa vigente |
+| `PUT` | `/api/credit-rate` | Atualiza a taxa vigente |
+| `POST` | `/api/proposals` | Cria uma proposta |
+| `GET` | `/api/proposals` | Lista propostas |
+| `GET` | `/api/proposals/{id}` | Consulta uma proposta |
+| `POST` | `/api/proposals/{id}/analyze` | Executa a análise de crédito |
+| `POST` | `/api/proposals/{id}/manual-decision` | Registra uma decisão manual |
 
-    $env:CREDITO_TEST_POSTGRES = "Host=localhost;Port=5432;Database=credito;Username=credito;Password=credito_local"
+A API utiliza `ProblemDetails` para padronização das respostas de erro.
 
-Execute:
+Em ambiente de desenvolvimento, os contratos podem ser explorados através do **Scalar** e do documento **OpenAPI**.
 
-    dotnet test .\CreditoSimuladoLite.sln
+---
+
+## Frontend
+
+O frontend é uma SPA desenvolvida com Angular 20.
+
+Principais telas:
+
+- Dashboard
+- Propostas
+- Nova proposta
+- Detalhes da proposta
+- Taxa de Crédito
+
+O frontend consome a API REST e apresenta também o status de disponibilidade da API.
+
+---
+
+## PostgreSQL e Docker
+
+O PostgreSQL 17 é executado localmente através do Docker Compose.
+
+Configuração de desenvolvimento:
+
+```text
+Database: credito
+Username: credito
+Password: credito_local
+Port: 5432
+```
+
+> As credenciais acima são destinadas exclusivamente ao ambiente local de desenvolvimento.
+
+O container possui healthcheck e o schema inicial é aplicado automaticamente na primeira criação do volume.
+
+---
+
+## Executando localmente
+
+### Pré-requisitos
+
+- .NET SDK 10
+- Node.js
+- npm
+- Docker Desktop
+
+### 1. Iniciar o PostgreSQL
+
+```powershell
+.\scripts\setup-local.ps1
+```
+
+Também é possível iniciar diretamente:
+
+```powershell
+docker compose up -d
+```
+
+### 2. Configurar a API
+
+No PowerShell:
+
+```powershell
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+$env:ConnectionStrings__Postgres = "Host=localhost;Port=5432;Database=credito;Username=credito;Password=credito_local"
+```
+
+### 3. Executar a API
+
+```powershell
+dotnet run --project .\src\Credito.Api\Credito.Api.csproj --urls http://localhost:5000
+```
+
+Endpoints de desenvolvimento:
+
+```text
+API:     http://localhost:5000
+Scalar:  http://localhost:5000/scalar/v1
+OpenAPI: http://localhost:5000/openapi/v1.json
+```
+
+### 4. Instalar as dependências do frontend
+
+```powershell
+npm --prefix .\src\Credito.Web install
+```
+
+### 5. Executar o Angular
+
+```powershell
+npm --prefix .\src\Credito.Web start
+```
+
+Frontend:
+
+```text
+http://localhost:4200
+```
+
+---
+
+## Testes automatizados
+
+Configure o banco utilizado pelos testes de integração:
+
+```powershell
+$env:CREDITO_TEST_POSTGRES = "Host=localhost;Port=5432;Database=credito;Username=credito;Password=credito_local"
+```
+
+Execute a suíte:
+
+```powershell
+dotnet test .\CreditoSimuladoLite.sln
+```
+
+Estado atual:
+
+```text
+Total:   35
+Sucesso: 35
+Falhas:  0
+```
+
+A suíte cobre regras do domínio, análise de propostas, decisões manuais, taxa de crédito, handlers e persistência PostgreSQL.
+
+---
 
 ## Build
 
-    dotnet build .\CreditoSimuladoLite.sln
+### Backend
 
-## Git Flow
+```powershell
+dotnet build .\CreditoSimuladoLite.sln
+```
 
-A evolução do projeto utiliza branches de feature, por exemplo:
+### Frontend
 
-    main
-      |
-      +-- feature/ddd-domain-model
-      +-- feature/rabbitmq-events
-      +-- feature/http-integration-tests
+```powershell
+npm --prefix .\src\Credito.Web run build
+```
 
-## Próximas evoluções
+---
 
-- aprofundar o modelo DDD;
-- melhorar os contratos OpenAPI;
-- logging estruturado;
-- health check do PostgreSQL;
-- testes HTTP/end-to-end;
-- RabbitMQ;
-- eventos de domínio;
-- Worker para processamento assíncrono;
-- arquitetura de microsserviços.
+## Integração contínua
+
+O projeto utiliza **GitHub Actions**.
+
+O workflow atual é executado em `push` e `pull_request` e realiza:
+
+```text
+Restore
+   |
+   v
+Build
+   |
+   v
+Unit Tests
+```
+
+A pipeline utiliza Ubuntu e .NET 10.
+
+---
+
+## Estrutura do repositório
+
+```text
+CreditoSimulado/
+|
++-- .github/
+|   +-- workflows/
+|
++-- db/
++-- scripts/
+|
++-- src/
+|   +-- Credito.Api/
+|   +-- Credito.Application/
+|   +-- Credito.Domain/
+|   +-- Credito.Infrastructure/
+|   +-- Credito.Web/
+|
++-- tests/
+|   +-- Credito.Tests/
+|   +-- Credito.IntegrationTests/
+|
++-- compose.yaml
++-- CreditoSimuladoLite.sln
++-- README.md
+```
+
+---
+
+## Objetivo técnico
+
+O projeto foi desenvolvido para demonstrar uma aplicação full stack com foco em:
+
+- modelagem e regras de domínio;
+- separação entre domínio, aplicação, infraestrutura e apresentação;
+- APIs REST;
+- persistência PostgreSQL;
+- integração Angular / ASP.NET Core;
+- código testável;
+- testes unitários e de integração;
+- containerização do ambiente de desenvolvimento;
+- versionamento com Git;
+- integração contínua.
+
+O escopo foi mantido propositalmente enxuto para priorizar **clareza arquitetural, regras de negócio e qualidade da implementação**.
