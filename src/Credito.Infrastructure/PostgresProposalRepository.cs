@@ -59,53 +59,123 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
             status, decision);
     }
 
-    public async Task<IReadOnlyList<Proposal>> ListAsync(
+    public async Task<PagedResult<Proposal>> ListAsync(
         ProposalStatus? status,
+        int page,
+        int pageSize,
         CancellationToken ct)
     {
-        await using var connection = new NpgsqlConnection(connectionString);
+        await using var connection =
+            new NpgsqlConnection(connectionString);
+
         await connection.OpenAsync(ct);
 
-        await using var command = connection.CreateCommand();
+        var statusValue =
+            status?.ToString() ?? (object)DBNull.Value;
+
+        int totalItems;
+
+        await using (var countCommand =
+                     connection.CreateCommand())
+        {
+            countCommand.CommandText = """
+                SELECT COUNT(*)::int
+                FROM CREDIT_PROPOSALS
+                WHERE (@status IS NULL OR STATUS = @status)
+                """;
+
+            countCommand.Parameters.Add(
+                new NpgsqlParameter(
+                    "status",
+                    NpgsqlDbType.Varchar)
+                {
+                    Value = statusValue
+                });
+
+            totalItems = Convert.ToInt32(
+                await countCommand.ExecuteScalarAsync(ct));
+        }
+
+        var offset = (page - 1) * pageSize;
+
+        await using var command =
+            connection.CreateCommand();
 
         command.CommandText = """
-            SELECT ID, CUSTOMER_REFERENCE, AMOUNT, TERM_MONTHS, MONTHLY_INCOME,
-                   CREATED_AT_UTC, STATUS, MONTHLY_PAYMENT, COMMITMENT_PERCENT, REASON, INTEREST_RATE_PERCENT, DECISION_SOURCE
+            SELECT ID,
+                   CUSTOMER_REFERENCE,
+                   AMOUNT,
+                   TERM_MONTHS,
+                   MONTHLY_INCOME,
+                   CREATED_AT_UTC,
+                   STATUS,
+                   MONTHLY_PAYMENT,
+                   COMMITMENT_PERCENT,
+                   REASON,
+                   INTEREST_RATE_PERCENT,
+                   DECISION_SOURCE
             FROM CREDIT_PROPOSALS
             WHERE (@status IS NULL OR STATUS = @status)
-            ORDER BY CREATED_AT_UTC DESC
+            ORDER BY CREATED_AT_UTC DESC, ID DESC
+            LIMIT @page_size
+            OFFSET @offset
             """;
 
         command.Parameters.Add(
-            new NpgsqlParameter("status", NpgsqlDbType.Varchar)
+            new NpgsqlParameter(
+                "status",
+                NpgsqlDbType.Varchar)
             {
-                Value = status?.ToString() ?? (object)DBNull.Value
+                Value = statusValue
+            });
+
+        command.Parameters.Add(
+            new NpgsqlParameter(
+                "page_size",
+                NpgsqlDbType.Integer)
+            {
+                Value = pageSize
+            });
+
+        command.Parameters.Add(
+            new NpgsqlParameter(
+                "offset",
+                NpgsqlDbType.Integer)
+            {
+                Value = offset
             });
 
         var proposals = new List<Proposal>();
 
-        await using var reader = await command.ExecuteReaderAsync(ct);
+        await using var reader =
+            await command.ExecuteReaderAsync(ct);
 
         while (await reader.ReadAsync(ct))
         {
             var proposalStatus =
-                Enum.Parse<ProposalStatus>(reader.GetString(6));
+                Enum.Parse<ProposalStatus>(
+                    reader.GetString(6));
 
-            CreditDecision? decision = reader.IsDBNull(7)
-                ? null
-                : new CreditDecision(
-                    proposalStatus,
-                    reader.GetDecimal(7),
-                    reader.GetDecimal(8),
-                    reader.GetString(9),
-                reader.IsDBNull(10) ? 1.5m : reader.GetDecimal(10),
-                reader.IsDBNull(11)
-                    ? DecisionSource.Automatic
-                    : Enum.Parse<DecisionSource>(reader.GetString(11)));
+            CreditDecision? decision =
+                reader.IsDBNull(7)
+                    ? null
+                    : new CreditDecision(
+                        proposalStatus,
+                        reader.GetDecimal(7),
+                        reader.GetDecimal(8),
+                        reader.GetString(9),
+                        reader.IsDBNull(10)
+                            ? 1.5m
+                            : reader.GetDecimal(10),
+                        reader.IsDBNull(11)
+                            ? DecisionSource.Automatic
+                            : Enum.Parse<DecisionSource>(
+                                reader.GetString(11)));
 
-            var createdAt = DateTime.SpecifyKind(
-                reader.GetDateTime(5),
-                DateTimeKind.Utc);
+            var createdAt =
+                DateTime.SpecifyKind(
+                    reader.GetDateTime(5),
+                    DateTimeKind.Utc);
 
             proposals.Add(
                 Proposal.Restore(
@@ -119,7 +189,11 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
                     decision));
         }
 
-        return proposals;
+        return new PagedResult<Proposal>(
+            proposals,
+            page,
+            pageSize,
+            totalItems);
     }
     public async Task<ProposalDashboardSummary> GetDashboardAsync(
         CancellationToken ct)
@@ -240,5 +314,3 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
     private static void Add(NpgsqlCommand command, string name, NpgsqlDbType type, object value)
         => command.Parameters.Add(new NpgsqlParameter(name, type) { Value = value });
 }
-
-

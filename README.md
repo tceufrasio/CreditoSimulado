@@ -11,14 +11,14 @@ O projeto demonstra na prática organização arquitetural, regras de domínio, 
 ## Funcionalidades
 
 - Cadastro de propostas de crédito
-- Consulta e filtro de propostas
+- Consulta, filtro e paginação server-side de propostas
 - Análise automática de crédito
 - Classificação em aprovação, revisão manual ou rejeição
 - Aprovação e rejeição manual
 - Dashboard com indicadores
 - Taxa de crédito configurável
 - Preservação da taxa utilizada em cada análise
-- Monitoramento da disponibilidade da API pelo frontend
+- Monitoramento de liveness e readiness da API
 
 ---
 
@@ -66,7 +66,7 @@ O projeto demonstra na prática organização arquitetural, regras de domínio, 
 - xUnit
 - Testes unitários
 - Testes de integração com PostgreSQL
-- **35 testes automatizados**
+- **41 testes automatizados**
 
 ---
 
@@ -188,16 +188,22 @@ Isso preserva o histórico das análises e evita que alterações futuras na tax
 | Método | Endpoint | Descrição |
 |---|---|---|
 | `GET` | `/health` | Verifica a disponibilidade da API |
+| `GET` | `/health/live` | Verifica se o processo da API está em execução |
+| `GET` | `/health/ready` | Verifica se a API está pronta e o PostgreSQL disponível |
 | `GET` | `/api/dashboard` | Obtém os indicadores do dashboard |
 | `GET` | `/api/credit-rate` | Consulta a taxa vigente |
 | `PUT` | `/api/credit-rate` | Atualiza a taxa vigente |
 | `POST` | `/api/proposals` | Cria uma proposta |
-| `GET` | `/api/proposals` | Lista propostas |
+| `GET` | `/api/proposals?status=&page=&pageSize=` | Lista propostas com filtro e paginação server-side |
 | `GET` | `/api/proposals/{id}` | Consulta uma proposta |
 | `POST` | `/api/proposals/{id}/analyze` | Executa a análise de crédito |
 | `POST` | `/api/proposals/{id}/manual-decision` | Registra uma decisão manual |
 
 A API utiliza `ProblemDetails` para padronização das respostas de erro.
+
+Erros de entrada HTTP/JSON e violações de regras de domínio retornam `400 Bad Request`. Conflitos de estado retornam `409 Conflict`, enquanto erros inesperados permanecem como `500 Internal Server Error`.
+
+O endpoint de propostas utiliza paginação server-side com `page` e `pageSize`, evitando carregar toda a coleção para o frontend.
 
 Em ambiente de desenvolvimento, os contratos podem ser explorados através do **Scalar** e do documento **OpenAPI**.
 
@@ -263,6 +269,11 @@ Port: 5432
 > As credenciais acima são destinadas exclusivamente ao ambiente local de desenvolvimento.
 
 O container possui healthcheck e o schema inicial é aplicado automaticamente na primeira criação do volume.
+
+A API também separa os conceitos de **liveness** e **readiness**:
+
+- `/health/live` indica se o processo da API está em execução;
+- `/health/ready` verifica a disponibilidade do PostgreSQL antes de considerar a aplicação pronta para receber tráfego.
 
 ---
 
@@ -347,8 +358,8 @@ dotnet test .\CreditoSimuladoLite.sln
 Estado atual:
 
 ```text
-Total:   35
-Sucesso: 35
+Total:   41
+Sucesso: 41
 Falhas:  0
 ```
 

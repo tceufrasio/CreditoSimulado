@@ -32,6 +32,8 @@ builder.Services.AddSingleton<IProposalRepository>(
 builder.Services.AddSingleton<ICreditRateRepository>(
     new PostgresCreditRateRepository(connection));
 
+builder.Services.AddSingleton(
+    new PostgresReadinessCheck(connection));
 builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -64,6 +66,37 @@ app.MapGet("/health", () =>
     .WithSummary("Verifica a disponibilidade da API")
     .Produces(StatusCodes.Status200OK);
 
+app.MapGet("/health/live", () =>
+        Results.Ok(new { status = "ok" }))
+    .WithTags("Health")
+    .WithSummary("Verifica se a API está em execução")
+    .Produces(StatusCodes.Status200OK);
+
+app.MapGet("/health/ready", async (
+        PostgresReadinessCheck readiness,
+        CancellationToken ct) =>
+    {
+        var isReady = await readiness.IsReadyAsync(ct);
+
+        return isReady
+            ? Results.Ok(new
+            {
+                status = "ready",
+                database = "available"
+            })
+            : Results.Json(
+                new
+                {
+                    status = "not_ready",
+                    database = "unavailable"
+                },
+                statusCode:
+                    StatusCodes.Status503ServiceUnavailable);
+    })
+    .WithTags("Health")
+    .WithSummary("Verifica se a API está pronta e o PostgreSQL está disponível")
+    .Produces(StatusCodes.Status200OK)
+    .Produces(StatusCodes.Status503ServiceUnavailable);
 app.MapGet("/api/dashboard", async (
         GetDashboardHandler handler,
         CancellationToken ct) =>
@@ -112,11 +145,19 @@ app.MapPut("/api/credit-rate", async (
     .ProducesProblem(StatusCodes.Status400BadRequest)
     .ProducesProblem(StatusCodes.Status500InternalServerError);
 app.MapPost("/api/proposals", async (
-        CreateProposalCommand input,
+        CreateProposalRequest input,
         CreateProposalHandler handler,
         CancellationToken ct) =>
     {
-        var proposal = await handler.HandleAsync(input, ct);
+        var command = new CreateProposalCommand(
+            input.CustomerReference,
+            input.Amount,
+            input.TermMonths,
+            input.MonthlyIncome);
+
+        var proposal = await handler.HandleAsync(
+            command,
+            ct);
 
         return Results.Created(
             $"/api/proposals/{proposal.Id}",
@@ -130,22 +171,33 @@ app.MapPost("/api/proposals", async (
 
 app.MapGet("/api/proposals", async (
         ProposalStatus? status,
+        int? page,
+        int? pageSize,
         ListProposalsHandler handler,
         CancellationToken ct) =>
     {
-        var proposals = await handler.HandleAsync(
-            new ListProposalsQuery(status),
+        var result = await handler.HandleAsync(
+            new ListProposalsQuery(
+                status,
+                page ?? 1,
+                pageSize ?? 10),
             ct);
 
         return Results.Ok(
-            proposals.Select(ToResponse));
+            new PagedResponse<ProposalResponse>(
+                result.Items
+                    .Select(ToResponse)
+                    .ToArray(),
+                result.Page,
+                result.PageSize,
+                result.TotalItems,
+                result.TotalPages));
     })
     .WithTags("Proposals")
-    .WithSummary("Lista propostas de crédito")
-    .Produces<IEnumerable<ProposalResponse>>(StatusCodes.Status200OK)
+    .WithSummary("Lista propostas de crédito com paginação")
+    .Produces<PagedResponse<ProposalResponse>>(StatusCodes.Status200OK)
     .ProducesProblem(StatusCodes.Status400BadRequest)
     .ProducesProblem(StatusCodes.Status500InternalServerError);
-
 app.MapGet("/api/proposals/{id:guid}", async (
         Guid id,
         GetProposalHandler handler,
@@ -230,6 +282,11 @@ static ProposalResponse ToResponse(Proposal proposal) => new(
     proposal.Status.ToString(),
     proposal.Decision);
 
+public sealed record PagedResponse<T>(
+    IReadOnlyList<T> Items,
+    int Page,
+    int PageSize,
+    int TotalItems,
+    int TotalPages);
+
 public partial class Program { }
-
-

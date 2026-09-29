@@ -80,46 +80,50 @@ public sealed class PostgresProposalRepositoryTests
                     approved,
                     default));
 
-            var all = await repo.ListAsync(null, default);
+            var all = await repo.ListAsync(null, 1, 100, default);
 
             Assert.Contains(
-                all,
+                all.Items,
                 p => p.Id == pending.Id);
 
             Assert.Contains(
-                all,
+                all.Items,
                 p => p.Id == approved.Id);
 
             var pendingOnly = await repo.ListAsync(
                 ProposalStatus.Pending,
+                1,
+                100,
                 default);
 
             Assert.Contains(
-                pendingOnly,
+                pendingOnly.Items,
                 p => p.Id == pending.Id);
 
             Assert.DoesNotContain(
-                pendingOnly,
+                pendingOnly.Items,
                 p => p.Id == approved.Id);
 
             var approvedOnly = await repo.ListAsync(
                 ProposalStatus.Approved,
+                1,
+                100,
                 default);
 
             Assert.Contains(
-                approvedOnly,
+                approvedOnly.Items,
                 p => p.Id == approved.Id);
 
             Assert.DoesNotContain(
-                approvedOnly,
+                approvedOnly.Items,
                 p => p.Id == pending.Id);
 
-            var pendingIndex = all
+            var pendingIndex = all.Items
                 .Select((proposal, index) => new { proposal.Id, index })
                 .Single(x => x.Id == pending.Id)
                 .index;
 
-            var approvedIndex = all
+            var approvedIndex = all.Items
                 .Select((proposal, index) => new { proposal.Id, index })
                 .Single(x => x.Id == approved.Id)
                 .index;
@@ -351,4 +355,3 @@ public sealed class PostgresProposalRepositoryTests
 
 
 }
-
