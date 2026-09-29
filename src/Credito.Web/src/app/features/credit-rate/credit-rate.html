@@ -1,0 +1,98 @@
+﻿<section class="rate-page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">Configuração</span>
+      <h1>Taxa de Crédito</h1>
+      <p>Defina a taxa mensal utilizada na análise de novas propostas.</p>
+    </div>
+  </header>
+
+  @if (loading) {
+    <div class="state-card">
+      Carregando taxa de crédito...
+    </div>
+  } @else {
+    <div class="rate-grid">
+      <article class="rate-card">
+        <div class="card-heading">
+          <div>
+            <span class="label">Taxa vigente</span>
+
+            <div class="current-rate">
+              {{ monthlyRatePercent | number:'1.2-4' }}%
+              <small>a.m.</small>
+            </div>
+          </div>
+
+          <div class="rate-icon">%</div>
+        </div>
+
+        @if (createdAtUtc) {
+          <p class="updated-at">
+            Atualizada em
+            {{ createdAtUtc | date:'dd/MM/yyyy HH:mm' }}
+          </p>
+        }
+      </article>
+
+      <article class="form-card">
+        <div class="form-heading">
+          <h2>Alterar taxa mensal</h2>
+          <p>
+            A nova taxa será aplicada somente às propostas analisadas
+            após a alteração.
+          </p>
+        </div>
+
+        <form (ngSubmit)="save()">
+          <label for="monthlyRate">Taxa mensal</label>
+
+          <div class="rate-input">
+            <input
+              id="monthlyRate"
+              name="monthlyRate"
+              type="number"
+              min="0.0001"
+              max="100"
+              step="0.0001"
+              [(ngModel)]="monthlyRatePercent"
+              [disabled]="saving"
+              required />
+
+            <span>% a.m.</span>
+          </div>
+
+          <small class="hint">
+            Exemplo: 1,60 representa uma taxa de 1,60% ao mês.
+          </small>
+
+          @if (successMessage) {
+            <div class="message success">
+              {{ successMessage }}
+            </div>
+          }
+
+          @if (errorMessage) {
+            <div class="message error">
+              {{ errorMessage }}
+            </div>
+          }
+
+          <button type="submit" [disabled]="saving">
+            {{ saving ? 'Salvando...' : 'Salvar taxa' }}
+          </button>
+        </form>
+      </article>
+    </div>
+
+    <article class="info-card">
+      <strong>Consistência histórica</strong>
+
+      <p>
+        A alteração da taxa não modifica propostas já analisadas.
+        Cada decisão mantém registrada a taxa utilizada no momento
+        da análise.
+      </p>
+    </article>
+  }
+</section>

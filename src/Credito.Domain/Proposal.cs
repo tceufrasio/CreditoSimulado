@@ -19,6 +19,7 @@ public sealed record CreditDecision(
     decimal MonthlyPayment,
     decimal IncomeCommitmentPercent,
     string Reason,
+    decimal MonthlyRatePercent = 1.5m,
     DecisionSource Source = DecisionSource.Automatic);
 
 public sealed class Proposal
@@ -169,13 +170,18 @@ public sealed class Proposal
 
         return normalizedReason;
     }
-    public CreditDecision Analyze()
+    public CreditDecision Analyze(CreditRate creditRate)
     {
         if (Decision is not null)
             return Decision;
 
-        // Prestação fixa pela Tabela Price com taxa simulada de 1,5% ao mês.
-        const decimal rate = 0.015m;
+        ArgumentNullException.ThrowIfNull(creditRate);
+
+        if (!creditRate.IsActive)
+            throw new InvalidOperationException(
+                "A taxa de crédito informada não está ativa.");
+
+        var rate = creditRate.MonthlyRatePercent / 100m;
 
         decimal factor = 1m;
 
@@ -215,10 +221,13 @@ public sealed class Proposal
             status,
             payment,
             percent,
-            reason);
+            reason,
+            creditRate.MonthlyRatePercent);
 
         Status = status;
 
         return Decision;
     }
 }
+
+

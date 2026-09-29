@@ -22,7 +22,7 @@ public sealed class ProposalTests
             income,
             DateTime.UtcNow);
 
-        var decision = proposal.Analyze();
+        var decision = proposal.Analyze(CreditRate.Create(1.5m, DateTime.UtcNow));
 
         Assert.Equal(expected, decision.Status);
         Assert.Equal(expected, proposal.Status);
@@ -96,8 +96,8 @@ public sealed class ProposalTests
             5000m,
             DateTime.UtcNow);
 
-        var firstDecision = proposal.Analyze();
-        var secondDecision = proposal.Analyze();
+        var firstDecision = proposal.Analyze(CreditRate.Create(1.5m, DateTime.UtcNow));
+        var secondDecision = proposal.Analyze(CreditRate.Create(1.5m, DateTime.UtcNow));
 
         Assert.Same(firstDecision, secondDecision);
         Assert.Equal(firstDecision, proposal.Decision);
@@ -114,7 +114,7 @@ public sealed class ProposalTests
             7000m,
             DateTime.UtcNow);
 
-        proposal.Analyze();
+        proposal.Analyze(CreditRate.Create(1.5m, DateTime.UtcNow));
 
         Assert.Equal(
             ProposalStatus.ManualReview,
@@ -150,7 +150,7 @@ public sealed class ProposalTests
             7000m,
             DateTime.UtcNow);
 
-        proposal.Analyze();
+        proposal.Analyze(CreditRate.Create(1.5m, DateTime.UtcNow));
 
         Assert.Equal(
             ProposalStatus.ManualReview,
@@ -182,7 +182,7 @@ public sealed class ProposalTests
             10000m,
             DateTime.UtcNow);
 
-        proposal.Analyze();
+        proposal.Analyze(CreditRate.Create(1.5m, DateTime.UtcNow));
 
         Assert.Equal(
             ProposalStatus.Approved,
@@ -203,8 +203,10 @@ public sealed class ProposalTests
             7000m,
             DateTime.UtcNow);
 
-        proposal.Analyze();
+        proposal.Analyze(CreditRate.Create(1.5m, DateTime.UtcNow));
 
         Assert.Throws<ArgumentException>(
             () => proposal.ApproveManually("abc"));
     }}
+
+

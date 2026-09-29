@@ -29,6 +29,9 @@ var connection = builder.Configuration.GetConnectionString("Postgres")
 builder.Services.AddSingleton<IProposalRepository>(
     new PostgresProposalRepository(connection));
 
+builder.Services.AddSingleton<ICreditRateRepository>(
+    new PostgresCreditRateRepository(connection));
+
 builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -39,6 +42,8 @@ builder.Services.AddScoped<CreateProposalHandler>();
 builder.Services.AddScoped<GetProposalHandler>();
 builder.Services.AddScoped<ListProposalsHandler>();
 builder.Services.AddScoped<GetDashboardHandler>();
+builder.Services.AddScoped<GetCreditRateHandler>();
+builder.Services.AddScoped<UpdateCreditRateHandler>();
 builder.Services.AddScoped<AnalyzeProposalHandler>();
 builder.Services.AddScoped<ManualDecisionHandler>();
 
@@ -72,6 +77,40 @@ app.MapGet("/api/dashboard", async (
     .Produces<ProposalDashboardSummary>(StatusCodes.Status200OK)
     .ProducesProblem(StatusCodes.Status500InternalServerError);
 
+app.MapGet("/api/credit-rate", async (
+        GetCreditRateHandler handler,
+        CancellationToken ct) =>
+    {
+        var rate = await handler.HandleAsync(ct);
+
+        return Results.Ok(new CreditRateResponse(
+            rate.MonthlyRatePercent,
+            rate.CreatedAtUtc));
+    })
+    .WithTags("Credit Rate")
+    .WithSummary("Obtém a taxa mensal de crédito atual")
+    .Produces<CreditRateResponse>(StatusCodes.Status200OK)
+    .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+app.MapPut("/api/credit-rate", async (
+        UpdateCreditRateRequest input,
+        UpdateCreditRateHandler handler,
+        CancellationToken ct) =>
+    {
+        var rate = await handler.HandleAsync(
+            new UpdateCreditRateCommand(
+                input.MonthlyRatePercent),
+            ct);
+
+        return Results.Ok(new CreditRateResponse(
+            rate.MonthlyRatePercent,
+            rate.CreatedAtUtc));
+    })
+    .WithTags("Credit Rate")
+    .WithSummary("Atualiza a taxa mensal de crédito")
+    .Produces<CreditRateResponse>(StatusCodes.Status200OK)
+    .ProducesProblem(StatusCodes.Status400BadRequest)
+    .ProducesProblem(StatusCodes.Status500InternalServerError);
 app.MapPost("/api/proposals", async (
         CreateProposalCommand input,
         CreateProposalHandler handler,
@@ -192,3 +231,5 @@ static ProposalResponse ToResponse(Proposal proposal) => new(
     proposal.Decision);
 
 public partial class Program { }
+
+
