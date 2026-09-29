@@ -374,21 +374,65 @@ npm --prefix .\src\Credito.Web run build
 
 ## Integração contínua
 
-O projeto utiliza **GitHub Actions**.
+O projeto utiliza **GitHub Actions** para validar automaticamente backend, banco de dados, testes e frontend em eventos de `push` e `pull_request`.
 
-O workflow atual é executado em `push` e `pull_request` e realiza:
+O pipeline é dividido em dois jobs independentes:
+
+### Backend — Build e Testes
 
 ```text
+Checkout
+   |
+   v
+Setup .NET 10
+   |
+   v
 Restore
    |
    v
 Build
    |
    v
-Unit Tests
+PostgreSQL 17
+   |
+   v
+Aplicação do schema
+   |
+   v
+Testes unitários
+   |
+   v
+Testes de integração
+
 ```
 
-A pipeline utiliza Ubuntu e .NET 10.
+Os testes de integração são executados contra uma instância real do **PostgreSQL 17** iniciada como service container no próprio GitHub Actions.
+
+### Frontend — Angular Build
+
+```text
+Checkout
+   |
+   v
+Setup Node.js 24
+   |
+   v
+npm ci
+   |
+   v
+Angular Build
+```
+
+Dessa forma, cada alteração enviada ao repositório valida automaticamente:
+
+- compilação da solução .NET;
+- regras cobertas pelos testes unitários;
+- persistência e integração com PostgreSQL;
+- aplicação do schema do banco;
+- instalação das dependências do frontend;
+- build da aplicação Angular.
+
+O pipeline utiliza **Ubuntu, .NET 10, PostgreSQL 17 e Node.js 24**.
 
 ---
 
