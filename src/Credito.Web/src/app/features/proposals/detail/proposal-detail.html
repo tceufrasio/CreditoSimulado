@@ -1,0 +1,272 @@
+﻿<section class="page">
+
+  <header class="page-header">
+    <div>
+      <a routerLink="/proposals" class="back-link">
+        ← Voltar para propostas
+      </a>
+
+      <span class="eyebrow">ANÁLISE DE CRÉDITO</span>
+
+      <h1>Detalhes da proposta</h1>
+
+      <p>
+        Consulte os dados da operação e o resultado da análise.
+      </p>
+    </div>
+  </header>
+
+  @if (loading) {
+    <div class="state-card">
+      Carregando proposta...
+    </div>
+  }
+
+  @if (error && !proposal) {
+    <div class="state-card error">
+      Não foi possível carregar a proposta.
+    </div>
+  }
+
+  @if (proposal) {
+    <div class="detail-grid">
+
+      <section class="card proposal-card">
+        <div class="card-header">
+          <div>
+            <span class="section-label">PROPOSTA</span>
+            <h2>{{ proposal.customerReference }}</h2>
+          </div>
+
+          <span
+            class="status"
+            [class.pending]="proposal.status === 'Pending'"
+            [class.approved]="proposal.status === 'Approved'"
+            [class.review]="proposal.status === 'ManualReview'"
+            [class.rejected]="proposal.status === 'Rejected'">
+            {{ statusLabel(proposal.status) }}
+          </span>
+        </div>
+
+        <div class="info-grid">
+          <div class="info">
+            <span>Valor solicitado</span>
+            <strong>
+              {{ proposal.amount |
+                currency:'BRL':'symbol':'1.2-2':'pt-BR' }}
+            </strong>
+          </div>
+
+          <div class="info">
+            <span>Renda mensal</span>
+            <strong>
+              {{ proposal.monthlyIncome |
+                currency:'BRL':'symbol':'1.2-2':'pt-BR' }}
+            </strong>
+          </div>
+
+          <div class="info">
+            <span>Prazo</span>
+            <strong>{{ proposal.termMonths }} meses</strong>
+          </div>
+
+          <div class="info">
+            <span>Data do cadastro</span>
+            <strong>
+              {{ proposal.createdAtUtc |
+                date:'dd/MM/yyyy HH:mm' }}
+            </strong>
+          </div>
+        </div>
+
+        <div class="proposal-id">
+          <span>Identificador da proposta</span>
+          <code>{{ proposal.id }}</code>
+        </div>
+      </section>
+
+      <aside
+        class="action-card"
+        [class.manual-review]="proposal.status === 'ManualReview'">
+
+        <span class="section-label">OPERAÇÃO</span>
+
+        @if (proposal.status === 'Pending') {
+          <h2>Proposta aguardando análise</h2>
+
+          <p>
+            Execute a análise para calcular a parcela,
+            comprometimento de renda e decisão de crédito.
+          </p>
+
+          <button
+            class="analyze-button"
+            [disabled]="analyzing"
+            (click)="analyze()">
+
+            @if (analyzing) {
+              Analisando...
+            } @else {
+              Analisar crédito
+            }
+          </button>
+
+        } @else if (proposal.status === 'ManualReview') {
+
+          <h2>Decisão manual necessária</h2>
+
+          <p>
+            A análise automática encaminhou esta proposta para
+            revisão. Informe uma justificativa e registre a decisão.
+          </p>
+
+          <div class="manual-form">
+            <label for="manualReason">
+              Justificativa da decisão
+            </label>
+
+            <textarea
+              id="manualReason"
+              name="manualReason"
+              [(ngModel)]="manualReason"
+              maxlength="250"
+              rows="4"
+              [disabled]="deciding"
+              placeholder="Descreva o motivo da aprovação ou rejeição...">
+            </textarea>
+
+            <div class="field-footer">
+              <span>Mínimo de 5 caracteres</span>
+              <span>{{ manualReason.length }}/250</span>
+            </div>
+
+            @if (operationError) {
+              <div class="operation-error">
+                {{ operationError }}
+              </div>
+            }
+
+            <div class="manual-actions">
+              <button
+                type="button"
+                class="decision-button reject"
+                [disabled]="deciding || manualReason.trim().length < 5"
+                (click)="rejectManually()">
+
+                @if (deciding) {
+                  Processando...
+                } @else {
+                  Rejeitar proposta
+                }
+              </button>
+
+              <button
+                type="button"
+                class="decision-button approve"
+                [disabled]="deciding || manualReason.trim().length < 5"
+                (click)="approveManually()">
+
+                @if (deciding) {
+                  Processando...
+                } @else {
+                  Aprovar proposta
+                }
+              </button>
+            </div>
+          </div>
+
+        } @else {
+
+          <h2>Processo concluído</h2>
+
+          <p>
+            Esta proposta já possui uma decisão de crédito
+            registrada e não requer novas ações.
+          </p>
+
+          @if (proposal.decision) {
+            <div class="completed-operation">
+              <span>Origem da decisão</span>
+              <strong>
+                {{ sourceLabel(proposal.decision.source) }}
+              </strong>
+            </div>
+          }
+        }
+      </aside>
+
+    </div>
+
+    @if (proposal.decision) {
+      <section class="decision-card">
+        <div class="decision-header">
+          <div>
+            <span class="section-label">RESULTADO</span>
+            <h2>Decisão de crédito</h2>
+          </div>
+
+          <div class="decision-badges">
+            <span
+              class="source-badge"
+              [class.manual]="proposal.decision.source === 'Manual'">
+              {{ sourceLabel(proposal.decision.source) }}
+            </span>
+
+            <span
+              class="status large"
+              [class.approved]="proposal.status === 'Approved'"
+              [class.review]="proposal.status === 'ManualReview'"
+              [class.rejected]="proposal.status === 'Rejected'">
+              {{ statusLabel(proposal.status) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="decision-grid">
+
+          <div class="metric">
+            <span>Parcela estimada</span>
+
+            <strong>
+              {{ proposal.decision.monthlyPayment |
+                currency:'BRL':'symbol':'1.2-2':'pt-BR' }}
+            </strong>
+
+            <small>por mês</small>
+          </div>
+
+          <div class="metric">
+            <span>Comprometimento da renda</span>
+
+            <strong>
+              {{ proposal.decision.incomeCommitmentPercent |
+                number:'1.2-2':'pt-BR' }}%
+            </strong>
+
+            <small>da renda declarada</small>
+          </div>
+
+          <div class="reason">
+            <span>
+              @if (proposal.decision.source === 'Manual') {
+                Justificativa da decisão manual
+              } @else {
+                Motivo da análise
+              }
+            </span>
+
+            <p>{{ proposal.decision.reason }}</p>
+          </div>
+
+        </div>
+      </section>
+    }
+
+    @if (operationError && proposal.status !== 'ManualReview') {
+      <div class="state-card error">
+        {{ operationError }}
+      </div>
+    }
+  }
+
+</section>

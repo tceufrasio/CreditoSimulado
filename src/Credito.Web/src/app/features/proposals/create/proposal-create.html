@@ -1,0 +1,229 @@
+﻿<section class="page">
+  <header class="page-header">
+    <div>
+      <a routerLink="/proposals" class="back-link">
+        ← Voltar para propostas
+      </a>
+
+      <span class="eyebrow">NOVA OPERAÇÃO</span>
+      <h1>Nova proposta</h1>
+
+      <p>
+        Informe os dados necessários para iniciar uma
+        simulação de crédito.
+      </p>
+    </div>
+  </header>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <div class="form-layout">
+
+      <section class="form-card">
+        <div class="card-title">
+          <span>01</span>
+
+          <div>
+            <h2>Dados da proposta</h2>
+            <p>Informações utilizadas na análise de crédito.</p>
+          </div>
+        </div>
+
+        <div class="fields">
+
+          <div class="field full">
+            <label for="customerReference">
+              Referência do cliente
+            </label>
+
+            <input
+              id="customerReference"
+              type="text"
+              formControlName="customerReference"
+              maxlength="30"
+              placeholder="Ex.: CLIENTE002"
+              autocomplete="off">
+
+            <small>
+              Utilize de 3 a 30 letras ou números, sem espaços.
+            </small>
+
+            @if (
+              customerReference.touched &&
+              customerReference.invalid
+            ) {
+              <span class="validation">
+                Informe uma referência válida usando apenas
+                letras e números.
+              </span>
+            }
+          </div>
+
+          <div class="field">
+            <label for="amount">
+              Valor solicitado
+            </label>
+
+            <div class="input-prefix">
+              <span>R$</span>
+
+              <input
+                id="amount"
+                type="text"
+                inputmode="numeric"
+                appCurrency
+                formControlName="amount"
+                autocomplete="off">
+            </div>
+
+            <small>
+              Entre R$ 1.000,00 e R$ 100.000,00.
+            </small>
+
+            @if (amount.touched && amount.invalid) {
+              <span class="validation">
+                Informe um valor entre R$ 1.000 e R$ 100.000.
+              </span>
+            }
+          </div>
+
+          <div class="field">
+            <label for="monthlyIncome">
+              Renda mensal
+            </label>
+
+            <div class="input-prefix">
+              <span>R$</span>
+
+              <input
+                id="monthlyIncome"
+                type="text"
+                inputmode="numeric"
+                appCurrency
+                formControlName="monthlyIncome"
+                autocomplete="off">
+            </div>
+
+            <small>
+              Renda mínima de R$ 1.000,00.
+            </small>
+
+            @if (
+              monthlyIncome.touched &&
+              monthlyIncome.invalid
+            ) {
+              <span class="validation">
+                Informe uma renda mensal de pelo menos R$ 1.000.
+              </span>
+            }
+          </div>
+
+          <div class="field">
+            <label for="termMonths">
+              Prazo
+            </label>
+
+            <div class="input-suffix">
+              <input
+                id="termMonths"
+                type="number"
+                formControlName="termMonths"
+                min="6"
+                max="48">
+
+              <span>meses</span>
+            </div>
+
+            <small>
+              Prazo permitido entre 6 e 48 meses.
+            </small>
+
+            @if (
+              termMonths.touched &&
+              termMonths.invalid
+            ) {
+              <span class="validation">
+                Informe um prazo entre 6 e 48 meses.
+              </span>
+            }
+          </div>
+
+        </div>
+      </section>
+
+      <aside class="summary-card">
+        <span class="eyebrow">RESUMO</span>
+        <h2>Simulação de crédito</h2>
+
+        <p>
+          A proposta será criada inicialmente com status
+          pendente.
+        </p>
+
+        <div class="summary-row">
+          <span>Valor</span>
+          <strong>
+            R$ {{ amount.value.toLocaleString(
+              'pt-BR',
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }
+            ) }}
+          </strong>
+        </div>
+
+        <div class="summary-row">
+          <span>Prazo</span>
+          <strong>{{ termMonths.value }} meses</strong>
+        </div>
+
+        <div class="summary-row">
+          <span>Renda</span>
+          <strong>
+            R$ {{ monthlyIncome.value.toLocaleString(
+              'pt-BR',
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }
+            ) }}
+          </strong>
+        </div>
+
+        <div class="pending-info">
+          <span></span>
+
+          <div>
+            <strong>Status inicial: Pendente</strong>
+            <small>
+              A análise será executada após o cadastro.
+            </small>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          class="submit-button"
+          [disabled]="submitting">
+
+          @if (submitting) {
+            Cadastrando...
+          } @else {
+            Criar proposta
+          }
+        </button>
+
+        <a routerLink="/proposals" class="cancel-button">
+          Cancelar
+        </a>
+      </aside>
+
+    </div>
+
+    @if (apiError) {
+      <div class="api-error">
+        {{ apiError }}
+      </div>
+    }
+  </form>
+</section>

@@ -8,11 +8,18 @@ public enum ProposalStatus
     Rejected
 }
 
+public enum DecisionSource
+{
+    Automatic,
+    Manual
+}
+
 public sealed record CreditDecision(
     ProposalStatus Status,
     decimal MonthlyPayment,
     decimal IncomeCommitmentPercent,
-    string Reason);
+    string Reason,
+    DecisionSource Source = DecisionSource.Automatic);
 
 public sealed class Proposal
 {
@@ -98,6 +105,70 @@ public sealed class Proposal
             status,
             decision);
 
+    public CreditDecision ApproveManually(string reason)
+    {
+        EnsureManualReview();
+
+        var normalizedReason = ValidateManualReason(reason);
+
+        Decision = Decision! with
+        {
+            Status = ProposalStatus.Approved,
+            Reason = normalizedReason,
+            Source = DecisionSource.Manual
+        };
+
+        Status = ProposalStatus.Approved;
+
+        return Decision;
+    }
+
+    public CreditDecision RejectManually(string reason)
+    {
+        EnsureManualReview();
+
+        var normalizedReason = ValidateManualReason(reason);
+
+        Decision = Decision! with
+        {
+            Status = ProposalStatus.Rejected,
+            Reason = normalizedReason,
+            Source = DecisionSource.Manual
+        };
+
+        Status = ProposalStatus.Rejected;
+
+        return Decision;
+    }
+
+    private void EnsureManualReview()
+    {
+        if (Status != ProposalStatus.ManualReview ||
+            Decision is null)
+        {
+            throw new InvalidOperationException(
+                "Somente propostas em revisão manual podem receber uma decisão manual.");
+        }
+    }
+
+    private static string ValidateManualReason(string? reason)
+    {
+        var normalizedReason = reason?.Trim() ?? string.Empty;
+
+        if (normalizedReason.Length < 5)
+        {
+            throw new ArgumentException(
+                "Informe um motivo com pelo menos 5 caracteres.");
+        }
+
+        if (normalizedReason.Length > 250)
+        {
+            throw new ArgumentException(
+                "O motivo deve possuir no máximo 250 caracteres.");
+        }
+
+        return normalizedReason;
+    }
     public CreditDecision Analyze()
     {
         if (Decision is not null)

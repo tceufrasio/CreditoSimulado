@@ -1,4 +1,4 @@
-using Credito.Domain;
+﻿using Credito.Domain;
 
 namespace Credito.Application;
 
@@ -6,7 +6,10 @@ public interface IProposalRepository
 {
     Task InsertAsync(Proposal proposal, CancellationToken cancellationToken);
     Task<Proposal?> GetAsync(Guid id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Proposal>> ListAsync(ProposalStatus? status, CancellationToken cancellationToken);
+    Task<ProposalDashboardSummary> GetDashboardAsync(CancellationToken cancellationToken);
     Task<bool> SaveDecisionIfPendingAsync(Proposal proposal, CancellationToken cancellationToken);
+    Task<bool> SaveManualDecisionAsync(Proposal proposal, CancellationToken cancellationToken);
 }
 
 public sealed record CreateProposalCommand(string CustomerReference, decimal Amount,
@@ -30,6 +33,28 @@ public sealed class GetProposalHandler(IProposalRepository repository)
         => repository.GetAsync(query.Id, ct);
 }
 
+public sealed record ListProposalsQuery(ProposalStatus? Status);
+
+public sealed class ListProposalsHandler(IProposalRepository repository)
+{
+    public Task<IReadOnlyList<Proposal>> HandleAsync(
+        ListProposalsQuery query,
+        CancellationToken ct)
+        => repository.ListAsync(query.Status, ct);
+}
+public sealed record ProposalDashboardSummary(
+    int Total,
+    int Pending,
+    int Approved,
+    int ManualReview,
+    int Rejected,
+    decimal TotalAmount);
+
+public sealed class GetDashboardHandler(IProposalRepository repository)
+{
+    public Task<ProposalDashboardSummary> HandleAsync(CancellationToken ct)
+        => repository.GetDashboardAsync(ct);
+}
 public sealed record AnalyzeProposalCommand(Guid Id);
 public sealed class AnalyzeProposalHandler(IProposalRepository repository)
 {
@@ -43,3 +68,50 @@ public sealed class AnalyzeProposalHandler(IProposalRepository repository)
         return await repository.GetAsync(command.Id, ct); // Outra requisição decidiu primeiro.
     }
 }
+
+public sealed record ManualDecisionCommand(
+    Guid Id,
+    ProposalStatus Decision,
+    string Reason);
+
+public sealed class ManualDecisionHandler(
+    IProposalRepository repository)
+{
+    public async Task<Proposal?> HandleAsync(
+        ManualDecisionCommand command,
+        CancellationToken ct)
+    {
+        var proposal = await repository.GetAsync(
+            command.Id,
+            ct);
+
+        if (proposal is null)
+            return null;
+
+        switch (command.Decision)
+        {
+            case ProposalStatus.Approved:
+                proposal.ApproveManually(command.Reason);
+                break;
+
+            case ProposalStatus.Rejected:
+                proposal.RejectManually(command.Reason);
+                break;
+
+            default:
+                throw new ArgumentException(
+                    "A decisão manual deve ser Approved ou Rejected.");
+        }
+
+        if (await repository.SaveManualDecisionAsync(
+                proposal,
+                ct))
+        {
+            return proposal;
+        }
+
+        throw new InvalidOperationException(
+            "A proposta não está mais disponível para decisão manual.");
+    }
+}
+

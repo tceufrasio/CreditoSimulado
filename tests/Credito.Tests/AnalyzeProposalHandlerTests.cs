@@ -1,4 +1,4 @@
-using Credito.Application;
+﻿using Credito.Application;
 using Credito.Domain;
 using Xunit;
 
@@ -27,6 +27,38 @@ public sealed class AnalyzeProposalHandlerTests
         public Task InsertAsync(Proposal p, CancellationToken ct) { proposal = p; return Task.CompletedTask; }
         public Task<Proposal?> GetAsync(Guid id, CancellationToken ct)
             => Task.FromResult(proposal?.Id == id ? proposal : null);
+        public Task<IReadOnlyList<Proposal>> ListAsync(
+            ProposalStatus? status,
+            CancellationToken cancellationToken)
+        {
+            IReadOnlyList<Proposal> proposals = proposal is null
+                ? Array.Empty<Proposal>()
+                : new[] { proposal };
+
+            return Task.FromResult(proposals);
+        }
+        public Task<ProposalDashboardSummary> GetDashboardAsync(
+            CancellationToken cancellationToken)
+        {
+            var summary = proposal is null
+                ? new ProposalDashboardSummary(0, 0, 0, 0, 0, 0m)
+                : new ProposalDashboardSummary(
+                    1,
+                    proposal.Status == ProposalStatus.Pending ? 1 : 0,
+                    proposal.Status == ProposalStatus.Approved ? 1 : 0,
+                    proposal.Status == ProposalStatus.ManualReview ? 1 : 0,
+                    proposal.Status == ProposalStatus.Rejected ? 1 : 0,
+                    proposal.Amount.Value);
+
+            return Task.FromResult(summary);
+        }
+        public Task<bool> SaveManualDecisionAsync(
+            Proposal proposal,
+            CancellationToken cancellationToken)
+        {
+            this.proposal = proposal;
+            return Task.FromResult(true);
+        }
         public Task<bool> SaveDecisionIfPendingAsync(Proposal p, CancellationToken ct)
         { SaveCount++; return Task.FromResult(true); }
     }
