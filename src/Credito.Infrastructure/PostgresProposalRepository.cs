@@ -35,7 +35,7 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
         await using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT ID, CUSTOMER_REFERENCE, AMOUNT, TERM_MONTHS, MONTHLY_INCOME,
-                   CREATED_AT_UTC, STATUS, MONTHLY_PAYMENT, COMMITMENT_PERCENT, REASON, DECISION_SOURCE
+                   CREATED_AT_UTC, STATUS, MONTHLY_PAYMENT, COMMITMENT_PERCENT, REASON, INTEREST_RATE_PERCENT, DECISION_SOURCE
             FROM CREDIT_PROPOSALS WHERE ID = @id
             """;
         Add(command, "id", NpgsqlDbType.Uuid, id);
@@ -49,9 +49,10 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
                 reader.GetDecimal(7),
                 reader.GetDecimal(8),
                 reader.GetString(9),
-                reader.IsDBNull(10)
+                reader.IsDBNull(10) ? 1.5m : reader.GetDecimal(10),
+                reader.IsDBNull(11)
                     ? DecisionSource.Automatic
-                    : Enum.Parse<DecisionSource>(reader.GetString(10)));
+                    : Enum.Parse<DecisionSource>(reader.GetString(11)));
         var createdAt = DateTime.SpecifyKind(reader.GetDateTime(5), DateTimeKind.Utc);
         return Proposal.Restore(reader.GetGuid(0), reader.GetString(1),
             reader.GetDecimal(2), reader.GetInt32(3), reader.GetDecimal(4), createdAt,
@@ -69,7 +70,7 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
 
         command.CommandText = """
             SELECT ID, CUSTOMER_REFERENCE, AMOUNT, TERM_MONTHS, MONTHLY_INCOME,
-                   CREATED_AT_UTC, STATUS, MONTHLY_PAYMENT, COMMITMENT_PERCENT, REASON, DECISION_SOURCE
+                   CREATED_AT_UTC, STATUS, MONTHLY_PAYMENT, COMMITMENT_PERCENT, REASON, INTEREST_RATE_PERCENT, DECISION_SOURCE
             FROM CREDIT_PROPOSALS
             WHERE (@status IS NULL OR STATUS = @status)
             ORDER BY CREATED_AT_UTC DESC
@@ -97,9 +98,10 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
                     reader.GetDecimal(7),
                     reader.GetDecimal(8),
                     reader.GetString(9),
-                    reader.IsDBNull(10)
-                        ? DecisionSource.Automatic
-                        : Enum.Parse<DecisionSource>(reader.GetString(10)));
+                reader.IsDBNull(10) ? 1.5m : reader.GetDecimal(10),
+                reader.IsDBNull(11)
+                    ? DecisionSource.Automatic
+                    : Enum.Parse<DecisionSource>(reader.GetString(11)));
 
             var createdAt = DateTime.SpecifyKind(
                 reader.GetDateTime(5),
@@ -158,14 +160,21 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            UPDATE CREDIT_PROPOSALS SET STATUS = @status, MONTHLY_PAYMENT = @payment,
-                COMMITMENT_PERCENT = @percent, REASON = @reason
-            WHERE ID = @id AND STATUS = 'Pending'
+            UPDATE CREDIT_PROPOSALS
+            SET STATUS = @status,
+                MONTHLY_PAYMENT = @payment,
+                COMMITMENT_PERCENT = @percent,
+                REASON = @reason,
+                INTEREST_RATE_PERCENT = @interest_rate_percent,
+                DECISION_SOURCE = @decision_source
+            WHERE ID = @id
+              AND STATUS = 'Pending'
             """;
         Add(command, "status", NpgsqlDbType.Varchar, decision.Status.ToString());
         Add(command, "payment", NpgsqlDbType.Numeric, decision.MonthlyPayment);
         Add(command, "percent", NpgsqlDbType.Numeric, decision.IncomeCommitmentPercent);
         Add(command, "reason", NpgsqlDbType.Varchar, decision.Reason);
+        Add(command, "interest_rate_percent", NpgsqlDbType.Numeric, decision.MonthlyRatePercent);
         Add(command, "decision_source", NpgsqlDbType.Varchar, decision.Source.ToString());
         Add(command, "id", NpgsqlDbType.Uuid, p.Id);
         return await command.ExecuteNonQueryAsync(ct) == 1;
@@ -231,3 +240,5 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
     private static void Add(NpgsqlCommand command, string name, NpgsqlDbType type, object value)
         => command.Parameters.Add(new NpgsqlParameter(name, type) { Value = value });
 }
+
+

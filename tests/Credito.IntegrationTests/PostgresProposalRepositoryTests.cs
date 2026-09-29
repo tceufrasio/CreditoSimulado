@@ -21,7 +21,7 @@ public sealed class PostgresProposalRepositoryTests
             var loaded = await repo.GetAsync(proposal.Id, default);
             Assert.NotNull(loaded);
             Assert.Equal(ProposalStatus.Pending, loaded.Status);
-            loaded.Analyze();
+            loaded.Analyze(CreditRate.Create(1.5m, DateTime.UtcNow));
             Assert.True(await repo.SaveDecisionIfPendingAsync(loaded, default));
             Assert.False(await repo.SaveDecisionIfPendingAsync(loaded, default));
             var saved = await repo.GetAsync(proposal.Id, default);
@@ -69,7 +69,7 @@ public sealed class PostgresProposalRepositoryTests
             await repo.InsertAsync(pending, default);
             await repo.InsertAsync(approved, default);
 
-            approved.Analyze();
+            approved.Analyze(CreditRate.Create(1.5m, DateTime.UtcNow));
 
             Assert.Equal(
                 ProposalStatus.Approved,
@@ -186,7 +186,7 @@ public sealed class PostgresProposalRepositoryTests
             await repo.InsertAsync(pending, default);
             await repo.InsertAsync(approved, default);
 
-            approved.Analyze();
+            approved.Analyze(CreditRate.Create(1.5m, DateTime.UtcNow));
 
             Assert.Equal(
                 ProposalStatus.Approved,
@@ -266,7 +266,7 @@ public sealed class PostgresProposalRepositoryTests
                 proposal,
                 default);
 
-            proposal.Analyze();
+            proposal.Analyze(CreditRate.Create(1.5m, DateTime.UtcNow));
 
             Assert.Equal(
                 ProposalStatus.ManualReview,
@@ -351,3 +351,4 @@ public sealed class PostgresProposalRepositoryTests
 
 
 }
+

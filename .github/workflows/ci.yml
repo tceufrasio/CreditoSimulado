@@ -1,17 +1,85 @@
 name: CI
+
 on:
   push:
   pull_request:
+
 permissions:
   contents: read
+
 jobs:
-  build-and-unit-test:
+  backend:
+    name: Backend - Build and Tests
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: credito
+          POSTGRES_USER: credito
+          POSTGRES_PASSWORD: credito_local
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U credito -d credito"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      CREDITO_TEST_POSTGRES: Host=localhost;Port=5432;Database=credito;Username=credito;Password=credito_local
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - run: dotnet restore CreditoSimuladoLite.sln
-      - run: dotnet build CreditoSimuladoLite.sln --no-restore
-      - run: dotnet test tests/Credito.Tests/Credito.Tests.csproj --no-restore
+
+      - name: Restore
+        run: dotnet restore CreditoSimuladoLite.sln
+
+      - name: Build
+        run: dotnet build CreditoSimuladoLite.sln --no-restore
+
+      - name: Apply database schema
+        env:
+          PGPASSWORD: credito_local
+        run: |
+          psql \
+            -h localhost \
+            -U credito \
+            -d credito \
+            -f db/02-schema.sql
+
+      - name: Unit tests
+        run: dotnet test tests/Credito.Tests/Credito.Tests.csproj --no-restore --no-build
+
+      - name: Integration tests
+        run: dotnet test tests/Credito.IntegrationTests/Credito.IntegrationTests.csproj --no-restore --no-build
+
+  frontend:
+    name: Frontend - Angular Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: src/Credito.Web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/Credito.Web
+        run: npm ci
+
+      - name: Build Angular
+        working-directory: src/Credito.Web
+        run: npm run build

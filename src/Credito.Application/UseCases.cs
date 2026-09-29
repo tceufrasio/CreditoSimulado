@@ -12,6 +12,35 @@ public interface IProposalRepository
     Task<bool> SaveManualDecisionAsync(Proposal proposal, CancellationToken cancellationToken);
 }
 
+public interface ICreditRateRepository
+{
+    Task<CreditRate> GetCurrentAsync(CancellationToken cancellationToken);
+    Task<CreditRate> UpdateAsync(
+        decimal monthlyRatePercent,
+        DateTime updatedAtUtc,
+        CancellationToken cancellationToken);
+}
+
+public sealed record UpdateCreditRateCommand(decimal MonthlyRatePercent);
+
+public sealed class GetCreditRateHandler(ICreditRateRepository repository)
+{
+    public Task<CreditRate> HandleAsync(CancellationToken ct)
+        => repository.GetCurrentAsync(ct);
+}
+
+public sealed class UpdateCreditRateHandler(
+    ICreditRateRepository repository,
+    TimeProvider clock)
+{
+    public Task<CreditRate> HandleAsync(
+        UpdateCreditRateCommand command,
+        CancellationToken ct)
+        => repository.UpdateAsync(
+            command.MonthlyRatePercent,
+            clock.GetUtcNow().UtcDateTime,
+            ct);
+}
 public sealed record CreateProposalCommand(string CustomerReference, decimal Amount,
     int TermMonths, decimal MonthlyIncome);
 
@@ -56,14 +85,17 @@ public sealed class GetDashboardHandler(IProposalRepository repository)
         => repository.GetDashboardAsync(ct);
 }
 public sealed record AnalyzeProposalCommand(Guid Id);
-public sealed class AnalyzeProposalHandler(IProposalRepository repository)
+public sealed class AnalyzeProposalHandler(
+    IProposalRepository repository,
+    ICreditRateRepository creditRateRepository)
 {
     public async Task<Proposal?> HandleAsync(AnalyzeProposalCommand command, CancellationToken ct)
     {
         var proposal = await repository.GetAsync(command.Id, ct);
         if (proposal is null) return null;
         if (proposal.Decision is not null) return proposal;
-        proposal.Analyze();
+        var creditRate = await creditRateRepository.GetCurrentAsync(ct);
+        proposal.Analyze(creditRate);
         if (await repository.SaveDecisionIfPendingAsync(proposal, ct)) return proposal;
         return await repository.GetAsync(command.Id, ct); // Outra requisição decidiu primeiro.
     }
@@ -114,4 +146,5 @@ public sealed class ManualDecisionHandler(
             "A proposta não está mais disponível para decisão manual.");
     }
 }
+
 
