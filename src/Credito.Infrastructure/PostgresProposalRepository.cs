@@ -1,4 +1,4 @@
-using Credito.Application;
+﻿using Credito.Application;
 using Credito.Domain;
 using Npgsql;
 using NpgsqlTypes;
@@ -19,10 +19,10 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
                     @created_at_utc, @status)
             """;
         Add(command, "id", NpgsqlDbType.Uuid, p.Id);
-        Add(command, "customer_reference", NpgsqlDbType.Varchar, p.CustomerReference);
-        Add(command, "amount", NpgsqlDbType.Numeric, p.Amount);
+        Add(command, "customer_reference", NpgsqlDbType.Varchar, p.CustomerReference.Value);
+        Add(command, "amount", NpgsqlDbType.Numeric, p.Amount.Value);
         Add(command, "term_months", NpgsqlDbType.Integer, p.TermMonths);
-        Add(command, "monthly_income", NpgsqlDbType.Numeric, p.MonthlyIncome);
+        Add(command, "monthly_income", NpgsqlDbType.Numeric, p.MonthlyIncome.Value);
         Add(command, "created_at_utc", NpgsqlDbType.TimestampTz, p.CreatedAtUtc);
         Add(command, "status", NpgsqlDbType.Varchar, p.Status.ToString());
         await command.ExecuteNonQueryAsync(ct);
@@ -52,7 +52,7 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
 
     public async Task<bool> SaveDecisionIfPendingAsync(Proposal p, CancellationToken ct)
     {
-        var decision = p.Decision ?? throw new InvalidOperationException("Proposta não analisada.");
+        var decision = p.Decision ?? throw new InvalidOperationException("Proposta nÃ£o analisada.");
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
@@ -72,3 +72,4 @@ public sealed class PostgresProposalRepository(string connectionString) : IPropo
     private static void Add(NpgsqlCommand command, string name, NpgsqlDbType type, object value)
         => command.Parameters.Add(new NpgsqlParameter(name, type) { Value = value });
 }
+
